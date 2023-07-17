@@ -14,7 +14,8 @@ class MME2E_T(nn.Module):
 
     def forward(self, text, get_cls=False):
         # logits, hidden_states = self.albert(**text, output_hidden_states=True)
-        last_hidden_state, _ = self.albert(**text)
+        ret = self.albert(**text)
+        last_hidden_state = ret['last_hidden_state']
 
         if get_cls:
             cls_feature = last_hidden_state[:, 0]

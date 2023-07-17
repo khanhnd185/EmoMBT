@@ -6,7 +6,8 @@ from torch.utils.data import DataLoader
 from src.cli import get_args
 from src.datasets import get_dataset_iemocap, collate_fn, HCFDataLoader, get_dataset_mosei, collate_fn_hcf_mosei
 # from src.models.e2e import MME2E
-from src.models.sparse_e2e import MME2E_Sparse
+# from src.models.sparse_e2e import MME2E_Sparse
+from src.models.mbt import E2EMBT
 from src.models.e2e import MME2E
 from src.models.baselines.lf_rnn import LF_RNN
 from src.models.baselines.lf_transformer import LF_Transformer
@@ -42,26 +43,26 @@ if __name__ == "__main__":
 
         if args['hand_crafted']:
             train_loader = HCFDataLoader(dataset=train_dataset, feature_type=args['audio_feature_type'],
-                                         batch_size=args['batch_size'], shuffle=True, num_workers=2)
+                                         batch_size=args['batch_size'], shuffle=True, num_workers=0)
             valid_loader = HCFDataLoader(dataset=valid_dataset, feature_type=args['audio_feature_type'],
-                                         batch_size=args['batch_size'], shuffle=False, num_workers=2)
+                                         batch_size=args['batch_size'], shuffle=False, num_workers=0)
             test_loader = HCFDataLoader(dataset=test_dataset, feature_type=args['audio_feature_type'],
-                                        batch_size=args['batch_size'], shuffle=False, num_workers=2)
+                                        batch_size=args['batch_size'], shuffle=False, num_workers=0)
         else:
             train_loader = DataLoader(train_dataset, batch_size=args['batch_size'], shuffle=True,
-                                      num_workers=2, collate_fn=collate_fn)
+                                      num_workers=0, collate_fn=collate_fn)
             valid_loader = DataLoader(valid_dataset, batch_size=args['batch_size'], shuffle=False,
-                                      num_workers=2, collate_fn=collate_fn)
+                                      num_workers=0, collate_fn=collate_fn)
             test_loader = DataLoader(test_dataset, batch_size=args['batch_size'], shuffle=False,
-                                     num_workers=2, collate_fn=collate_fn)
+                                     num_workers=0, collate_fn=collate_fn)
     elif args['dataset'] == 'mosei':
         train_dataset = get_dataset_mosei(data_folder=args['datapath'], phase='train', img_interval=args['img_interval'], hand_crafted_features=args['hand_crafted'])
         valid_dataset = get_dataset_mosei(data_folder=args['datapath'], phase='valid', img_interval=args['img_interval'], hand_crafted_features=args['hand_crafted'])
         test_dataset = get_dataset_mosei(data_folder=args['datapath'], phase='test', img_interval=args['img_interval'], hand_crafted_features=args['hand_crafted'])
 
-        train_loader = DataLoader(train_dataset, batch_size=args['batch_size'], shuffle=True, num_workers=2, collate_fn=collate_fn_hcf_mosei if args['hand_crafted'] else collate_fn)
-        valid_loader = DataLoader(valid_dataset, batch_size=args['batch_size'], shuffle=False, num_workers=2, collate_fn=collate_fn_hcf_mosei if args['hand_crafted'] else collate_fn)
-        test_loader = DataLoader(test_dataset, batch_size=args['batch_size'], shuffle=False, num_workers=2, collate_fn=collate_fn_hcf_mosei if args['hand_crafted'] else collate_fn)
+        train_loader = DataLoader(train_dataset, batch_size=args['batch_size'], shuffle=True, num_workers=0, collate_fn=collate_fn_hcf_mosei if args['hand_crafted'] else collate_fn)
+        valid_loader = DataLoader(valid_dataset, batch_size=args['batch_size'], shuffle=False, num_workers=0, collate_fn=collate_fn_hcf_mosei if args['hand_crafted'] else collate_fn)
+        test_loader = DataLoader(test_dataset, batch_size=args['batch_size'], shuffle=False, num_workers=0, collate_fn=collate_fn_hcf_mosei if args['hand_crafted'] else collate_fn)
 
     print(f'# Train samples = {len(train_loader.dataset)}')
     print(f'# Valid samples = {len(valid_loader.dataset)}')
@@ -93,6 +94,28 @@ if __name__ == "__main__":
                 {'params': model.a_flatten.parameters()},
                 {'params': model.a_transformer.parameters()},
                 {'params': model.a_out.parameters()},
+                {'params': model.weighted_fusion.parameters()},
+            ], lr=lr, weight_decay=args['weight_decay'])
+    elif args['model'] == 'mbt':
+        model = E2EMBT(args=args, device=device)
+        model = model.to(device=device)
+
+        # When using a pre-trained text modal, you can use text_lr_factor to give a smaller leraning rate to the textual model parts
+        if args['text_lr_factor'] == 1:
+            optimizer = torch.optim.Adam(model.parameters(), lr=args['learning_rate'], weight_decay=args['weight_decay'])
+        else:
+            optimizer = torch.optim.Adam([
+                {'params': model.T.parameters(), 'lr': lr / args['text_lr_factor']},
+                {'params': model.t_out.parameters(), 'lr': lr / args['text_lr_factor']},
+                {'params': model.V.parameters()},
+                {'params': model.v_flatten.parameters()},
+                {'params': model.v_transformer.parameters()},
+                {'params': model.v_out.parameters()},
+                {'params': model.A.parameters()},
+                {'params': model.a_flatten.parameters()},
+                {'params': model.a_transformer.parameters()},
+                {'params': model.a_out.parameters()},
+                {'params': model.mbt.parameters()},
                 {'params': model.weighted_fusion.parameters()},
             ], lr=lr, weight_decay=args['weight_decay'])
     elif args['model'] == 'mme2e_sparse':

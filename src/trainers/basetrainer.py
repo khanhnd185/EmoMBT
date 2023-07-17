@@ -32,7 +32,7 @@ class TrainerBase():
     def get_saving_file_name(self):
         best_test_stats = self.all_test_stats[self.best_epoch - 1]
 
-        name = f'{self.args["model"]}_{self.args["modalities"]}_'
+        name = f'{self.args["model"]}_{self.args["modalities"]}_{self.args["custom"]}_{self.args["dataset"]}_'
 
         if self.args['loss'] == 'bce':
             name += f'Acc_{best_test_stats[0][-1]:.4f}_'

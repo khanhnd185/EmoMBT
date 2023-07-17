@@ -19,13 +19,14 @@ def get_args():
 
     # Model
     parser.add_argument('-mo', '--model', help='Which model', type=str, required=False, default='mme2e')
-    parser.add_argument('--text-model-size', help='Size of the pre-trained text model', type=str, required=False, default='base')
-    parser.add_argument('--fusion', help='How to fuse modalities', type=str, required=False, default='early')
+    parser.add_argument('--custom', help='Custome name', type=str, required=False, default='default')
+    parser.add_argument('--fusion', help='How to fuse modalities', type=str, required=False, default='mlp')
     parser.add_argument('--feature-dim', help='Dimension of features outputed by each modality model', type=int, required=False, default=256)
     parser.add_argument('-st', '--sparse-threshold', help='Threshold of sparse CNN layers', type=float, required=False, default=0.9)
     parser.add_argument('-hfcs', '--hfc-sizes', help='Hand crafted feature sizes', nargs='+', type=int, required=False, default=[300, 144, 35])
     parser.add_argument('--trans-dim', help='Dimension of the transformer after CNN', type=int, required=False, default=512)
     parser.add_argument('--trans-nlayers', help='Number of layers of the transformer after CNN', type=int, required=False, default=2)
+    parser.add_argument('--bot-nlayers', help='Number of bottleneck layers of the MBT', type=int, required=False, default=2)
     parser.add_argument('--trans-nheads', help='Number of heads of the transformer after CNN', type=int, required=False, default=8)
     parser.add_argument('-aft', '--audio-feature-type', help='Hand crafted audio feature types', type=int, default=0)
 

@@ -230,7 +230,7 @@ class IEMOCAP(Dataset):
         self.label_annotations = label_annotations
 
         self.utteranceFolders = {
-            folder.split('/')[-1]: folder
+            folder.split('\\')[-1]: folder
             for folder in glob.glob(os.path.join(main_folder, '**/*'))
         }
         self.img_interval = img_interval

@@ -12,7 +12,7 @@ class IemocapTrainer(TrainerBase):
         super(IemocapTrainer, self).__init__(args, model, criterion, optimizer, scheduler, device, dataloaders)
         self.args = args
         self.text_max_len = args['text_max_len']
-        self.tokenizer = AlbertTokenizer.from_pretrained(f'albert-{args["text_model_size"]}-v2')
+        self.tokenizer = AlbertTokenizer.from_pretrained(f'albert-base-v2')
         self.eval_func = eval_iemocap if args['loss'] == 'bce' else eval_iemocap_ce
         self.all_train_stats = []
         self.all_valid_stats = []
