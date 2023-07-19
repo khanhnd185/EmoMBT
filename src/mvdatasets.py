@@ -6,8 +6,50 @@ import torchaudio
 from torchvision import transforms
 import numpy as np
 from torch.utils.data.dataset import Dataset
-from typing import List, Tuple, Optional
+from typing import List, Dict, Tuple, Optional
+from src.utils import load, padTensor, get_max_len
 from PIL import Image
+
+audio_feature_indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 655, 656, 657, 658, 659, 660, 661, 662, 663, 664, 665, 666, 667, 668, 669, 670, 671, 672, 673, 674, 675, 676, 677, 678, 679, 680, 681, 682, 683, 684, 685, 686, 687, 688, 689, 690, 691, 692, 693, 694, 695, 696, 697, 698, 699, 700, 701, 702, 703, 704, 705, 706, 707, 708, 709, 710, 711, 712, 713, 714, 715, 716, 717, 718, 719, 720, 721, 722, 723, 724, 725, 726, 727, 728, 729, 730, 731, 732, 733, 734, 735, 736, 737, 738, 739, 740, 741, 742, 743, 744, 745, 746, 747, 748, 749, 750, 751, 752, 753, 754, 755, 756, 757, 758, 759, 760, 761, 762]
+
+def getEmotionDict() -> Dict[str, int]:
+    return {'ang': 0, 'exc': 1, 'fru': 2, 'hap': 3, 'neu': 4, 'sad': 5}
+
+def get_dataset_iemocap(data_folder: str, phase: str, img_interval: int):
+    main_folder = os.path.join(data_folder, 'IEMOCAP_RAW_PROCESSED')
+    meta = load(os.path.join(main_folder, 'meta.pkl'))
+
+    emoDict = getEmotionDict()
+    uttr_ids = open(os.path.join(data_folder, 'IEMOCAP_SPLIT', f'{phase}_split.txt'), 'r').read().splitlines()
+    texts = [meta[uttr_id]['text'] for uttr_id in uttr_ids]
+    labels = [emoDict[meta[uttr_id]['label']] for uttr_id in uttr_ids]
+
+    this_dataset = MVIEMOCAP(
+        main_folder=main_folder,
+        utterance_ids=uttr_ids,
+        texts=texts,
+        labels=labels,
+        label_annotations=list(emoDict.keys()),
+        img_interval=img_interval
+    )
+
+    return this_dataset
+
+def get_dataset_mosei(data_folder: str, phase: str, img_interval: int):
+    main_folder = os.path.join(data_folder, 'MOSEI_RAW_PROCESSED')
+    meta = load(os.path.join(main_folder, 'meta.pkl'))
+
+    ids = open(os.path.join(data_folder, 'MOSEI_SPLIT', f'{phase}_split.txt'), 'r').read().splitlines()
+    texts = [meta[id]['text'] for id in ids]
+    labels = [meta[id]['label'] for id in ids]
+
+    return MVMOSEI(
+        main_folder=main_folder,
+        ids=ids,
+        texts=texts,
+        labels=labels,
+        img_interval=img_interval
+    )
 
 class MVMOSEI(Dataset):
     def __init__(self, main_folder: str, ids: List[str], texts: List[List[int]], labels: List[int], img_interval: int):

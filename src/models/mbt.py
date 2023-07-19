@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F
 from src.utils import padTensor
 from transformers import AlbertModel
 from timm.models.layers import trunc_normal_
@@ -222,6 +223,8 @@ class E2EMBT(nn.Module):
 
         cls_t, cls_v, cls_a = self.mbt(v, imgs_lens, a, spec_lens, t, text_lens)
 
+        return cls_v
+
         if self.fusion == 'audio':
             return self.a_out(cls_a)
         elif self.fusion == 'visual':
@@ -241,3 +244,49 @@ class E2EMBT(nn.Module):
         off = (current_size - target_size) // 2 # offset
         cropped = img[:, off:off + target_size, off - target_size // 2:off + target_size // 2]
         return cropped
+
+class SupConMBT(nn.Module):
+    """backbone + projection head"""
+    def __init__(self, args, device, head='mlp'):
+        super(SupConMBT, self).__init__()
+        self.encoder = E2EMBT(args, device)
+        embed_dim = args['trans_dim']
+        if head == 'linear':
+            self.head = nn.Linear(embed_dim, embed_dim)
+        elif head == 'mlp':
+            self.head = nn.Sequential(
+                nn.Linear(embed_dim, embed_dim),
+                nn.ReLU(inplace=True),
+                nn.Linear(embed_dim, embed_dim)
+            )
+        else:
+            raise NotImplementedError(
+                'head not supported: {}'.format(head))
+
+    def forward(self, imgs, imgs_lens, specs, spec_lens, text):
+        feat = self.encoder(imgs, imgs_lens, specs, spec_lens, text)
+        feat = F.normalize(self.head(feat), dim=1)
+        return feat
+
+class CEMBT(nn.Module):
+    """backbone + projection head"""
+    def __init__(self, args, device, head='mlp', num_classes=6):
+        super(CEMBT, self).__init__()
+        self.encoder = E2EMBT(args, device)
+        embed_dim = args['trans_dim']
+        if head == 'linear':
+            self.head = nn.Linear(embed_dim, num_classes)
+        elif head == 'mlp':
+            self.head = nn.Sequential(
+                nn.Linear(embed_dim, embed_dim),
+                nn.ReLU(inplace=True),
+                nn.Linear(embed_dim, num_classes)
+            )
+        else:
+            raise NotImplementedError(
+                'head not supported: {}'.format(head))
+
+    def forward(self, imgs, imgs_lens, specs, spec_lens, text):
+        feat = self.encoder(imgs, imgs_lens, specs, spec_lens, text)
+        feat = self.head(feat)
+        return feat
