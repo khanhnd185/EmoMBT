@@ -223,8 +223,6 @@ class E2EMBT(nn.Module):
 
         cls_t, cls_v, cls_a = self.mbt(v, imgs_lens, a, spec_lens, t, text_lens)
 
-        return cls_v
-
         if self.fusion == 'audio':
             return self.a_out(cls_a)
         elif self.fusion == 'visual':
@@ -245,48 +243,114 @@ class E2EMBT(nn.Module):
         cropped = img[:, off:off + target_size, off - target_size // 2:off + target_size // 2]
         return cropped
 
+
 class SupConMBT(nn.Module):
-    """backbone + projection head"""
-    def __init__(self, args, device, head='mlp'):
+    def __init__(self, args, device):
         super(SupConMBT, self).__init__()
-        self.encoder = E2EMBT(args, device)
-        embed_dim = args['trans_dim']
-        if head == 'linear':
-            self.head = nn.Linear(embed_dim, embed_dim)
-        elif head == 'mlp':
-            self.head = nn.Sequential(
-                nn.Linear(embed_dim, embed_dim),
-                nn.ReLU(inplace=True),
-                nn.Linear(embed_dim, embed_dim)
-            )
-        else:
-            raise NotImplementedError(
-                'head not supported: {}'.format(head))
+        self.num_classes = args['num_emotions']
+        self.args = args
+        self.mod = args['modalities'].lower()
+        self.device = device
+        self.fusion = args['fusion']
+        bot_nlayers = args['bot_nlayers']
+        nlayers = args['trans_nlayers']
+        nheads = args['trans_nheads']
+        trans_dim = args['trans_dim']
+
+        self.T = MME2E_T(feature_dim=trans_dim)
+        self.mtcnn = MTCNN(image_size=48, margin=2, post_process=False, device=device)
+        self.normalize = transforms.Normalize(mean=[159, 111, 102], std=[37, 33, 32])
+
+        self.V = nn.Sequential(
+            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5, padding=2),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            VggBasicBlock(in_planes=64, out_planes=64),
+            VggBasicBlock(in_planes=64, out_planes=64),
+            VggBasicBlock(in_planes=64, out_planes=128),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            VggBasicBlock(in_planes=128, out_planes=256),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            VggBasicBlock(in_planes=256, out_planes=512),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+
+        self.A = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=64, kernel_size=5, padding=2),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            VggBasicBlock(in_planes=64, out_planes=64),
+            VggBasicBlock(in_planes=64, out_planes=64),
+            VggBasicBlock(in_planes=64, out_planes=128),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            VggBasicBlock(in_planes=128, out_planes=256),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            VggBasicBlock(in_planes=256, out_planes=512),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+
+        self.v_flatten = nn.Sequential(
+            nn.Linear(512 * 3 * 3, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, trans_dim)
+        )
+
+        self.a_flatten = nn.Sequential(
+            nn.Linear(512 * 8 * 2, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, trans_dim)
+        )
+
+        self.v_transformer = WrappedTransformerEncoder(dim=trans_dim, num_layers=nlayers, num_heads=nheads)
+        self.a_transformer = WrappedTransformerEncoder(dim=trans_dim, num_layers=nlayers, num_heads=nheads)
+
+        self.mbt = MBT(trans_dim, bot_nlayers, nheads, 1)
+        self.head = nn.Sequential(
+            nn.Linear(trans_dim, trans_dim),
+            nn.ReLU(inplace=True),
+            nn.Linear(trans_dim, trans_dim)
+        )
+
+    def encode(self, imgs, imgs_lens, specs, spec_lens, text):
+        if 't' in self.mod:
+            t = self.T(text)
+            text_lens = text["attention_mask"][:, 1:].sum(1)
+
+        if 'v' in self.mod:
+            faces = self.mtcnn(imgs)
+            for i, face in enumerate(faces):
+                if face is None:
+                    center = self.crop_img_center(torch.tensor(imgs[i]).permute(2, 0, 1))
+                    faces[i] = center
+            faces = [self.normalize(face) for face in faces]
+            faces = torch.stack(faces, dim=0).to(device=self.device)
+
+            faces = self.V(faces)
+
+            faces = self.v_flatten(faces.flatten(start_dim=1))
+            v = self.v_transformer(faces, imgs_lens)
+
+
+        if 'a' in self.mod:
+            for a_module in self.A:
+                specs = a_module(specs)
+
+            specs = self.a_flatten(specs.flatten(start_dim=1))
+            a = self.a_transformer(specs, spec_lens)
+
+        cls_t, cls_v, cls_a = self.mbt(v, imgs_lens, a, spec_lens, t, text_lens)
+
+        return cls_v
 
     def forward(self, imgs, imgs_lens, specs, spec_lens, text):
-        feat = self.encoder(imgs, imgs_lens, specs, spec_lens, text)
+        feat = self.encode(imgs, imgs_lens, specs, spec_lens, text)
         feat = F.normalize(self.head(feat), dim=1)
         return feat
 
-class CEMBT(nn.Module):
-    """backbone + projection head"""
-    def __init__(self, args, device, head='mlp', num_classes=6):
-        super(CEMBT, self).__init__()
-        self.encoder = E2EMBT(args, device)
-        embed_dim = args['trans_dim']
-        if head == 'linear':
-            self.head = nn.Linear(embed_dim, num_classes)
-        elif head == 'mlp':
-            self.head = nn.Sequential(
-                nn.Linear(embed_dim, embed_dim),
-                nn.ReLU(inplace=True),
-                nn.Linear(embed_dim, num_classes)
-            )
-        else:
-            raise NotImplementedError(
-                'head not supported: {}'.format(head))
-
-    def forward(self, imgs, imgs_lens, specs, spec_lens, text):
-        feat = self.encoder(imgs, imgs_lens, specs, spec_lens, text)
-        feat = self.head(feat)
-        return feat
+    def crop_img_center(self, img: torch.tensor, target_size=48):
+        current_size = img.size(1)
+        off = (current_size - target_size) // 2 # offset
+        cropped = img[:, off:off + target_size, off - target_size // 2:off + target_size // 2]
+        return cropped

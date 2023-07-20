@@ -95,14 +95,14 @@ if __name__ == "__main__":
             optimizer = torch.optim.Adam(model.parameters(), lr=args['learning_rate'], weight_decay=args['weight_decay'])
         else:
             optimizer = torch.optim.Adam([
-                {'params': model.encoder.T.parameters(), 'lr': lr / args['text_lr_factor']},
-                {'params': model.encoder.V.parameters()},
-                {'params': model.encoder.v_flatten.parameters()},
-                {'params': model.encoder.v_transformer.parameters()},
-                {'params': model.encoder.A.parameters()},
-                {'params': model.encoder.a_flatten.parameters()},
-                {'params': model.encoder.a_transformer.parameters()},
-                {'params': model.encoder.mbt.parameters()},
+                {'params': model.T.parameters(), 'lr': lr / args['text_lr_factor']},
+                {'params': model.V.parameters()},
+                {'params': model.v_flatten.parameters()},
+                {'params': model.v_transformer.parameters()},
+                {'params': model.A.parameters()},
+                {'params': model.a_flatten.parameters()},
+                {'params': model.a_transformer.parameters()},
+                {'params': model.mbt.parameters()},
                 {'params': model.head.parameters()},
             ], lr=lr, weight_decay=args['weight_decay'])
     elif args['model'] == 'mme2e_sparse':
