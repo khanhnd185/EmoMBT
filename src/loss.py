@@ -5,9 +5,10 @@ from torch.nn.functional import normalize
 class SupConLoss(nn.Module):
     """Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf.
     It also supports the unsupervised contrastive loss in SimCLR"""
-    def __init__(self, temperature=0.07, contrast_mode='all',
+    def __init__(self, temperature=0.07, contrast_mode='all', multiclass=True,
                  base_temperature=0.07):
-        super(SupConLoss, self).__init__()
+        super(SupConLoss, self,).__init__()
+        self.multiclass = multiclass
         self.temperature = temperature
         self.contrast_mode = contrast_mode
         self.base_temperature = base_temperature
@@ -41,6 +42,8 @@ class SupConLoss(nn.Module):
         elif labels is None and mask is None:
             mask = torch.eye(batch_size, dtype=torch.float32).to(device)
         elif labels is not None:
+            if self.multiclass:
+                labels = torch.argmax(labels, dim=1)
             labels = labels.contiguous().view(-1, 1)
             if labels.shape[0] != batch_size:
                 raise ValueError('Num of labels does not match num of features')

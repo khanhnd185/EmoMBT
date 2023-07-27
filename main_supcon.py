@@ -12,7 +12,7 @@ from src.models.e2e import MME2E
 from src.models.baselines.lf_rnn import LF_RNN
 from src.models.baselines.lf_transformer import LF_Transformer
 from src.trainers.emotionsupcontrainer import IemocapSupConTrainer
-from src.loss import MultiheadSupervisedContrastiveLossNoNegatives
+from src.loss import MultiheadSupervisedContrastiveLossNoNegatives, SupConLoss
 
 if __name__ == "__main__":
     start = time.time()
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     else:
         scheduler = None
 
-    criterion = MultiheadSupervisedContrastiveLossNoNegatives()
+    criterion = SupConLoss()
 
     if args['dataset'] == 'iemocap' or 'mosei':
         trainer = IemocapSupConTrainer(args, model, criterion, optimizer, scheduler, device, dataloaders)
