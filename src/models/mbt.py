@@ -9,7 +9,8 @@ from torchvision import transforms
 from facenet_pytorch import MTCNN
 from src.models.vgg_block import VggBasicBlock
 
-from torch.nn import TransformerEncoderLayer
+#from torch.nn import TransformerEncoderLayer
+from src.models.transformer_layer import TransformerEncoderLayer
 
 class MME2E_T(nn.Module):
     def __init__(self, feature_dim, size='base'):
@@ -30,7 +31,7 @@ class WrappedTransformerEncoder(nn.Module):
     def __init__(self, dim, num_layers, num_heads):
         super(WrappedTransformerEncoder, self).__init__()
         self.dim = dim
-        encoder_layer = TransformerEncoderLayer(d_model=dim, nhead=num_heads)
+        encoder_layer = TransformerEncoderLayer(d_model=dim, nhead=num_heads, batch_first=True)
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
         self.cls_emb = nn.Embedding(num_embeddings=1, embedding_dim=dim)
 
@@ -53,9 +54,10 @@ class WrappedTransformerEncoder(nn.Module):
 
         inputs = self.prepend_cls(inputs)
 
-        inputs = inputs.permute(1, 0, 2)
-        inputs = self.encoder(src=inputs, src_key_padding_mask=mask) # (seq_len, bs, dim)
+        #inputs = inputs.permute(1, 0, 2)
+        inputs = self.encoder(src=inputs) # (seq_len, bs, dim)
 
+        return inputs
         return inputs.permute(1, 0, 2)
 
 
@@ -103,14 +105,14 @@ class MBT(nn.Module):
         a = torch.cat((bot_av, bot_ta, a), dim=1)
         t = torch.cat((bot_vt, bot_ta, t), dim=1)
 
-        v = v.permute(1, 0, 2)
-        a = a.permute(1, 0, 2)
-        t = t.permute(1, 0, 2)
-
         for i in range(self.num_layers):
-            v = self.v_layers[i](src=v, src_key_padding_mask=mask_v)
-            a = self.a_layers[i](src=a, src_key_padding_mask=mask_a)
-            t = self.t_layers[i](src=t, src_key_padding_mask=mask_t)
+            v = self.v_layers[i](src=v)
+            a = self.a_layers[i](src=a)
+            t = self.t_layers[i](src=t)
+
+            v = v.permute(1, 0, 2)
+            a = a.permute(1, 0, 2)
+            t = t.permute(1, 0, 2)
 
             v[:self.num_bottle_token] = (v[:self.num_bottle_token] + a[:self.num_bottle_token]) / 2
             a[:self.num_bottle_token] = v[:self.num_bottle_token]
@@ -120,6 +122,14 @@ class MBT(nn.Module):
 
             t[:self.num_bottle_token] = (t[:self.num_bottle_token] + v[self.num_bottle_token:self.cls_index]) / 2
             v[self.num_bottle_token:self.cls_index] = t[:self.num_bottle_token]
+
+            v = v.permute(1, 0, 2)
+            a = a.permute(1, 0, 2)
+            t = t.permute(1, 0, 2)
+
+        v = v.permute(1, 0, 2)
+        a = a.permute(1, 0, 2)
+        t = t.permute(1, 0, 2)
 
         return t[self.cls_index], v[self.cls_index], a[self.cls_index]
 
