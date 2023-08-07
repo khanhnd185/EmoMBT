@@ -9,6 +9,8 @@ from torchvision import transforms
 from facenet_pytorch import MTCNN
 from src.models.vgg_block import VggBasicBlock
 
+from torch.nn import TransformerEncoderLayer
+
 class MME2E_T(nn.Module):
     def __init__(self, feature_dim, size='base'):
         super(MME2E_T, self).__init__()
@@ -28,7 +30,7 @@ class WrappedTransformerEncoder(nn.Module):
     def __init__(self, dim, num_layers, num_heads):
         super(WrappedTransformerEncoder, self).__init__()
         self.dim = dim
-        encoder_layer = nn.TransformerEncoderLayer(d_model=dim, nhead=num_heads)
+        encoder_layer = TransformerEncoderLayer(d_model=dim, nhead=num_heads)
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
         self.cls_emb = nn.Embedding(num_embeddings=1, embedding_dim=dim)
 
@@ -64,7 +66,7 @@ class MBT(nn.Module):
         self.num_layers = num_layers
         self.num_bottle_token = num_bottle_token
         self.cls_index = 2 * self.num_bottle_token
-        encoder_layer = nn.TransformerEncoderLayer(d_model=dim, nhead=num_heads)
+        encoder_layer = TransformerEncoderLayer(d_model=dim, nhead=num_heads)
 
         self.a_layers = _get_clones(encoder_layer, num_layers)
         self.v_layers = _get_clones(encoder_layer, num_layers)
