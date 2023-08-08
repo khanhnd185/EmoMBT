@@ -65,20 +65,16 @@ class MBT(nn.Module):
         self.dim = dim
         self.num_layers = num_layers
         self.num_bottle_token = num_bottle_token
-        self.cls_index = 2 * self.num_bottle_token
+        self.cls_index = num_bottle_token
         encoder_layer = TransformerEncoderLayer(d_model=dim, nhead=num_heads)
 
         self.a_layers = _get_clones(encoder_layer, num_layers)
         self.v_layers = _get_clones(encoder_layer, num_layers)
         self.t_layers = _get_clones(encoder_layer, num_layers)
 
-        self.bot_av = nn.Parameter(torch.zeros(1, num_bottle_token, dim))
-        self.bot_vt = nn.Parameter(torch.zeros(1, num_bottle_token, dim))
-        self.bot_ta = nn.Parameter(torch.zeros(1, num_bottle_token, dim))
+        self.bot = nn.Parameter(torch.zeros(1, num_bottle_token, dim))
 
-        trunc_normal_(self.bot_av, std=.02)
-        trunc_normal_(self.bot_vt, std=.02)
-        trunc_normal_(self.bot_ta, std=.02)
+        trunc_normal_(self.bot, std=.02)
 
 
     def get_mask(self, lens, device, is_t=False):
@@ -96,12 +92,10 @@ class MBT(nn.Module):
         mask_v = self.get_mask(v_lens, v.device)
         mask_t = self.get_mask(t_lens, t.device, is_t=True)
 
-        bot_av = self.bot_av.expand(B, -1, -1)
-        bot_vt = self.bot_vt.expand(B, -1, -1)
-        bot_ta = self.bot_ta.expand(B, -1, -1)
-        v = torch.cat((bot_av, bot_vt, v), dim=1)
-        a = torch.cat((bot_av, bot_ta, a), dim=1)
-        t = torch.cat((bot_vt, bot_ta, t), dim=1)
+        bot = self.bot.expand(B, -1, -1)
+        v = torch.cat((bot, v), dim=1)
+        a = torch.cat((bot, a), dim=1)
+        t = torch.cat((bot, t), dim=1)
 
         v = v.permute(1, 0, 2)
         a = a.permute(1, 0, 2)
@@ -112,14 +106,9 @@ class MBT(nn.Module):
             a = self.a_layers[i](src=a, src_key_padding_mask=mask_a)
             t = self.t_layers[i](src=t, src_key_padding_mask=mask_t)
 
-            v[:self.num_bottle_token] = (v[:self.num_bottle_token] + a[:self.num_bottle_token]) / 2
+            v[:self.num_bottle_token] = (v[:self.num_bottle_token] + a[:self.num_bottle_token] + t[:self.num_bottle_token]) / 3
             a[:self.num_bottle_token] = v[:self.num_bottle_token]
-
-            a[self.num_bottle_token:self.cls_index] = (a[self.num_bottle_token:self.cls_index] + t[self.num_bottle_token:self.cls_index]) / 2
-            t[self.num_bottle_token:self.cls_index] = a[self.num_bottle_token:self.cls_index]
-
-            t[:self.num_bottle_token] = (t[:self.num_bottle_token] + v[self.num_bottle_token:self.cls_index]) / 2
-            v[self.num_bottle_token:self.cls_index] = t[:self.num_bottle_token]
+            t[:self.num_bottle_token] = v[:self.num_bottle_token]
 
         return t[self.cls_index], v[self.cls_index], a[self.cls_index]
 
@@ -186,7 +175,7 @@ class E2EMBT(nn.Module):
         self.v_transformer = WrappedTransformerEncoder(dim=trans_dim, num_layers=nlayers, num_heads=nheads)
         self.a_transformer = WrappedTransformerEncoder(dim=trans_dim, num_layers=nlayers, num_heads=nheads)
 
-        self.mbt = MBT(trans_dim, bot_nlayers, nheads, 1)
+        self.mbt = MBT(trans_dim, bot_nlayers, nheads, 2)
         self.v_out = nn.Linear(trans_dim, self.num_classes)
         self.t_out = nn.Linear(trans_dim, self.num_classes)
         self.a_out = nn.Linear(trans_dim, self.num_classes)
