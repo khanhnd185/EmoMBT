@@ -191,7 +191,12 @@ class E2EMBT(nn.Module):
         self.t_out = nn.Linear(trans_dim, self.num_classes)
         self.a_out = nn.Linear(trans_dim, self.num_classes)
 
-        self.weighted_fusion = nn.Linear(len(self.mod), 1, bias=False)
+        if self.fusion == 'gate':
+            self.weighted_fusion = nn.Linear(trans_dim, self.num_classes, bias=False)
+            self.activate = nn.Tanh()
+            self.gated_activate = nn.Softmax(dim=1)
+        else:
+            self.weighted_fusion = nn.Linear(len(self.mod), 1, bias=False)
 
     def forward(self, imgs, imgs_lens, specs, spec_lens, text):
         all_logits = []
@@ -232,6 +237,16 @@ class E2EMBT(nn.Module):
             return self.t_out(cls_t)
         elif self.fusion == 'avg':
             return (self.a_out(cls_a) + self.v_out(cls_v) + self.t_out(cls_t)) / 3
+        elif self.fusion == 'gate':
+            ha = self.activate(self.a_out(cls_a))
+            hv = self.activate(self.v_out(cls_v))
+            ht = self.activate(self.t_out(cls_t))
+            h = torch.cat((ha.unsqueeze(-1), hv.unsqueeze(-1), ht.unsqueeze(-1)), dim=-1)
+            z = torch.cat((cls_a.unsqueeze(1), cls_v.unsqueeze(1), cls_t.unsqueeze(1)), dim=1)
+            z = self.weighted_fusion(z)
+            z = self.gated_activate(z)
+            out = h * z.permute(0, 2, 1)
+            return torch.sum(out, 2)
         else:
             all_logits.append(self.t_out(cls_t))
             all_logits.append(self.v_out(cls_v))
