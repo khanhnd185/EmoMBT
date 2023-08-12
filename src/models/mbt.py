@@ -134,12 +134,13 @@ class CrossT(nn.Module):
         self.v_layers = _get_clones(encoder_layer, num_layers)
         self.t_layers = _get_clones(encoder_layer, num_layers)
 
-        self.dec_layer_a2v = nn.TransformerDecoderLayer(d_model=dim, nhead=num_heads)
-        self.dec_layer_t2v = nn.TransformerDecoderLayer(d_model=dim, nhead=num_heads)
-        self.dec_layer_v2a = nn.TransformerDecoderLayer(d_model=dim, nhead=num_heads)
-        self.dec_layer_t2a = nn.TransformerDecoderLayer(d_model=dim, nhead=num_heads)
-        self.dec_layer_a2t = nn.TransformerDecoderLayer(d_model=dim, nhead=num_heads)
-        self.dec_layer_v2t = nn.TransformerDecoderLayer(d_model=dim, nhead=num_heads)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=dim, nhead=num_heads)
+        self.dec_layer_a2v = _get_clones(decoder_layer, num_layers-1)
+        self.dec_layer_t2v = _get_clones(decoder_layer, num_layers-1)
+        self.dec_layer_v2a = _get_clones(decoder_layer, num_layers-1)
+        self.dec_layer_t2a = _get_clones(decoder_layer, num_layers-1)
+        self.dec_layer_a2t = _get_clones(decoder_layer, num_layers-1)
+        self.dec_layer_v2t = _get_clones(decoder_layer, num_layers-1)
 
 
     def get_mask(self, lens, device, is_t=False):
@@ -161,24 +162,25 @@ class CrossT(nn.Module):
         a = a.permute(1, 0, 2)
         t = t.permute(1, 0, 2)
 
-        v = self.v_layers[0](src=v, src_key_padding_mask=mask_v)
-        a = self.a_layers[0](src=a, src_key_padding_mask=mask_a)
-        t = self.t_layers[0](src=t, src_key_padding_mask=mask_t)
+        for i in range(self.num_layers - 1):
+            v = self.v_layers[i](src=v, src_key_padding_mask=mask_v)
+            a = self.a_layers[i](src=a, src_key_padding_mask=mask_a)
+            t = self.t_layers[i](src=t, src_key_padding_mask=mask_t)
 
-        vt = self.dec_layer_t2v(tgt=v, memory=t, tgt_key_padding_mask=mask_v, memory_key_padding_mask=mask_t)
-        va = self.dec_layer_a2v(tgt=v, memory=a, tgt_key_padding_mask=mask_v, memory_key_padding_mask=mask_a)
-        at = self.dec_layer_a2v(tgt=a, memory=t, tgt_key_padding_mask=mask_a, memory_key_padding_mask=mask_t)
-        av = self.dec_layer_a2v(tgt=a, memory=v, tgt_key_padding_mask=mask_a, memory_key_padding_mask=mask_v)
-        ta = self.dec_layer_a2v(tgt=t, memory=a, tgt_key_padding_mask=mask_t, memory_key_padding_mask=mask_a)
-        tv = self.dec_layer_a2v(tgt=t, memory=v, tgt_key_padding_mask=mask_t, memory_key_padding_mask=mask_v)
+            vt = self.dec_layer_t2v[i](tgt=v, memory=t, tgt_key_padding_mask=mask_v, memory_key_padding_mask=mask_t)
+            va = self.dec_layer_a2v[i](tgt=v, memory=a, tgt_key_padding_mask=mask_v, memory_key_padding_mask=mask_a)
+            at = self.dec_layer_a2v[i](tgt=a, memory=t, tgt_key_padding_mask=mask_a, memory_key_padding_mask=mask_t)
+            av = self.dec_layer_a2v[i](tgt=a, memory=v, tgt_key_padding_mask=mask_a, memory_key_padding_mask=mask_v)
+            ta = self.dec_layer_a2v[i](tgt=t, memory=a, tgt_key_padding_mask=mask_t, memory_key_padding_mask=mask_a)
+            tv = self.dec_layer_a2v[i](tgt=t, memory=v, tgt_key_padding_mask=mask_t, memory_key_padding_mask=mask_v)
 
-        v = (vt + va) / 2
-        a = (at + av) / 2
-        t = (ta + tv) / 2
+            v = (vt + va) / 2
+            a = (at + av) / 2
+            t = (ta + tv) / 2
 
-        v = self.v_layers[1](src=v, src_key_padding_mask=mask_v)
-        a = self.a_layers[1](src=a, src_key_padding_mask=mask_a)
-        t = self.t_layers[1](src=t, src_key_padding_mask=mask_t)
+        v = self.v_layers[self.num_layers - 1](src=v, src_key_padding_mask=mask_v)
+        a = self.a_layers[self.num_layers - 1](src=a, src_key_padding_mask=mask_a)
+        t = self.t_layers[self.num_layers - 1](src=t, src_key_padding_mask=mask_t)
 
         return t[0], v[0], a[0]
 
