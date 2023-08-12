@@ -123,6 +123,66 @@ class MBT(nn.Module):
 
         return t[self.cls_index], v[self.cls_index], a[self.cls_index]
 
+class CrossT(nn.Module):
+    def __init__(self, dim, num_layers, num_heads, num_bottle_token):
+        super(CrossT, self).__init__()
+        self.dim = dim
+        self.num_layers = num_layers
+        encoder_layer = TransformerEncoderLayer(d_model=dim, nhead=num_heads)
+
+        self.a_layers = _get_clones(encoder_layer, num_layers)
+        self.v_layers = _get_clones(encoder_layer, num_layers)
+        self.t_layers = _get_clones(encoder_layer, num_layers)
+
+        self.dec_layer_a2v = nn.TransformerDecoderLayer(d_model=dim, nhead=num_heads)
+        self.dec_layer_t2v = nn.TransformerDecoderLayer(d_model=dim, nhead=num_heads)
+        self.dec_layer_v2a = nn.TransformerDecoderLayer(d_model=dim, nhead=num_heads)
+        self.dec_layer_t2a = nn.TransformerDecoderLayer(d_model=dim, nhead=num_heads)
+        self.dec_layer_a2t = nn.TransformerDecoderLayer(d_model=dim, nhead=num_heads)
+        self.dec_layer_v2t = nn.TransformerDecoderLayer(d_model=dim, nhead=num_heads)
+
+
+    def get_mask(self, lens, device, is_t=False):
+        if is_t:
+            max_len = 99
+        else:
+            max_len = max(lens)
+        mask = [([False] * (l + 1) + [True] * (max_len - l)) for l in lens]
+        return torch.tensor(mask).to(device=device)
+
+    def forward(self, v: torch.Tensor, v_lens, a: torch.Tensor, a_lens, t: torch.Tensor, t_lens):
+        B = v.shape[0]
+
+        mask_a = self.get_mask(a_lens, a.device)
+        mask_v = self.get_mask(v_lens, v.device)
+        mask_t = self.get_mask(t_lens, t.device, is_t=True)
+
+        v = v.permute(1, 0, 2)
+        a = a.permute(1, 0, 2)
+        t = t.permute(1, 0, 2)
+
+        v = self.v_layers[0](src=v, src_key_padding_mask=mask_v)
+        a = self.a_layers[0](src=a, src_key_padding_mask=mask_a)
+        t = self.t_layers[0](src=t, src_key_padding_mask=mask_t)
+
+        vt = self.dec_layer_t2v(tgt=v, memory=t, tgt_key_padding_mask=mask_v, memory_key_padding_mask=mask_t)
+        va = self.dec_layer_a2v(tgt=v, memory=a, tgt_key_padding_mask=mask_v, memory_key_padding_mask=mask_a)
+        at = self.dec_layer_a2v(tgt=a, memory=t, tgt_key_padding_mask=mask_a, memory_key_padding_mask=mask_t)
+        av = self.dec_layer_a2v(tgt=a, memory=v, tgt_key_padding_mask=mask_a, memory_key_padding_mask=mask_v)
+        ta = self.dec_layer_a2v(tgt=t, memory=a, tgt_key_padding_mask=mask_t, memory_key_padding_mask=mask_a)
+        tv = self.dec_layer_a2v(tgt=t, memory=v, tgt_key_padding_mask=mask_t, memory_key_padding_mask=mask_v)
+
+        v = (vt + va) / 2
+        a = (at + av) / 2
+        t = (ta + tv) / 2
+
+        v = self.v_layers[1](src=v, src_key_padding_mask=mask_v)
+        a = self.a_layers[1](src=a, src_key_padding_mask=mask_a)
+        t = self.t_layers[1](src=t, src_key_padding_mask=mask_t)
+
+        return t[0], v[0], a[0]
+
+
 
 class E2EMBT(nn.Module):
     def __init__(self, args, device):
@@ -186,7 +246,7 @@ class E2EMBT(nn.Module):
         self.v_transformer = WrappedTransformerEncoder(dim=trans_dim, num_layers=nlayers, num_heads=nheads)
         self.a_transformer = WrappedTransformerEncoder(dim=trans_dim, num_layers=nlayers, num_heads=nheads)
 
-        self.mbt = MBT(trans_dim, bot_nlayers, nheads, 1)
+        self.mbt = CrossT(trans_dim, bot_nlayers, nheads, 1)
         self.v_out = nn.Linear(trans_dim, self.num_classes)
         self.t_out = nn.Linear(trans_dim, self.num_classes)
         self.a_out = nn.Linear(trans_dim, self.num_classes)
