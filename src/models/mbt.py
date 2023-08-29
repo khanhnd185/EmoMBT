@@ -198,6 +198,14 @@ class E2EMBT(nn.Module):
         else:
             self.weighted_fusion = nn.Linear(len(self.mod), 1, bias=False)
 
+        if self.mod == 'a':
+            self.fusion = 'audio'
+        elif self.mod == 't':
+            self.fusion = 'text'
+        elif self.mod == 'v':
+            self.fusion = 'visual'
+        
+
     def forward(self, imgs, imgs_lens, specs, spec_lens, text):
         all_logits = []
 
@@ -227,7 +235,14 @@ class E2EMBT(nn.Module):
             specs = self.a_flatten(specs.flatten(start_dim=1))
             a = self.a_transformer(specs, spec_lens)
 
-        cls_t, cls_v, cls_a = self.mbt(v, imgs_lens, a, spec_lens, t, text_lens)
+        if len(self.mod) == 3:
+            cls_t, cls_v, cls_a = self.mbt(v, imgs_lens, a, spec_lens, t, text_lens)
+        elif self.mod == 'a':
+            cls_a = a[:,0,:]
+        elif self.mod == 't':
+            cls_t = t[:,0,:]
+        elif self.mod == 'v':
+            cls_v = v[:,0,:]
 
         if self.fusion == 'audio':
             return self.a_out(cls_a)
