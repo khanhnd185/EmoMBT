@@ -124,6 +124,55 @@ class MBT(nn.Module):
         return t[self.cls_index], v[self.cls_index], a[self.cls_index]
 
 
+class MBT2(nn.Module):
+    def __init__(self, dim, num_layers, num_heads, num_bottle_token, y_is_text=False):
+        super(MBT2, self).__init__()
+        self.dim = dim
+        self.num_layers = num_layers
+        self.num_bottle_token = num_bottle_token
+        encoder_layer = TransformerEncoderLayer(d_model=dim, nhead=num_heads)
+
+        self.x_layers = _get_clones(encoder_layer, num_layers)
+        self.y_layers = _get_clones(encoder_layer, num_layers)
+
+        self.bot = nn.Parameter(torch.zeros(1, num_bottle_token, dim))
+        self.y_is_text = y_is_text
+
+        trunc_normal_(self.bot, std=.02)
+
+
+    def get_mask(self, lens, device, is_t=False):
+        if is_t:
+            max_len = 99
+        else:
+            max_len = max(lens)
+        mask = [([False] * (l + 1 + self.num_bottle_token) + [True] * (max_len - l)) for l in lens]
+        return torch.tensor(mask).to(device=device)
+
+    def forward(self, x: torch.Tensor, x_lens, y: torch.Tensor, y_lens):
+        B = x.shape[0]
+
+        mask_x = self.get_mask(x_lens, x.device)
+        mask_y = self.get_mask(y_lens, y.device, is_t=self.y_is_text)
+
+        bot = self.bot.expand(B, -1, -1)
+        x = torch.cat((bot, x), dim=1)
+        y = torch.cat((bot, y), dim=1)
+
+        x = x.permute(1, 0, 2)
+        y = y.permute(1, 0, 2)
+
+        for i in range(self.num_layers):
+            x = self.x_layers[i](src=x, src_key_padding_mask=mask_x)
+            y = self.y_layers[i](src=y, src_key_padding_mask=mask_y)
+
+            x[:self.num_bottle_token] = (x[:self.num_bottle_token] + y[:self.num_bottle_token]) / 2
+            y[:self.num_bottle_token] = x[:self.num_bottle_token]
+
+        return x[self.num_bottle_token], y[self.num_bottle_token]
+
+
+
 class E2EMBT(nn.Module):
     def __init__(self, args, device):
         super(E2EMBT, self).__init__()
@@ -186,7 +235,11 @@ class E2EMBT(nn.Module):
         self.v_transformer = WrappedTransformerEncoder(dim=trans_dim, num_layers=nlayers, num_heads=nheads)
         self.a_transformer = WrappedTransformerEncoder(dim=trans_dim, num_layers=nlayers, num_heads=nheads)
 
-        self.mbt = MBT(trans_dim, bot_nlayers, nheads, 1)
+        if len(self.mod) == 3:
+            self.mbt = MBT(trans_dim, bot_nlayers, nheads, 1)
+        else:
+            self.mbt = MBT2(trans_dim, bot_nlayers, nheads, 1, y_is_text=('t' in self.mod))
+
         self.v_out = nn.Linear(trans_dim, self.num_classes)
         self.t_out = nn.Linear(trans_dim, self.num_classes)
         self.a_out = nn.Linear(trans_dim, self.num_classes)
@@ -243,6 +296,13 @@ class E2EMBT(nn.Module):
             cls_t = t[:,0,:]
         elif self.mod == 'v':
             cls_v = v[:,0,:]
+        else:
+            if 'a' in self.mod and 't' in self.mod:
+                cls_a, cls_t = self.mbt(a, spec_lens, t, text_lens)
+            elif 'a' in self.mod and 'v' in self.mod:
+                cls_v, cls_a = self.mbt(v, imgs_lens, a, spec_lens)
+            elif 'v' in self.mod and 't' in self.mod:
+                cls_v, cls_t = self.mbt(v, imgs_lens, t, text_lens)
 
         if self.fusion == 'audio':
             return self.a_out(cls_a)
