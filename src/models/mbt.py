@@ -190,6 +190,7 @@ class E2EMBT(nn.Module):
         self.mtcnn = MTCNN(image_size=48, margin=2, post_process=False, device=device)
         self.normalize = transforms.Normalize(mean=[159, 111, 102], std=[37, 33, 32])
 
+
         self.V = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5, padding=2),
             nn.BatchNorm2d(64),
@@ -204,6 +205,9 @@ class E2EMBT(nn.Module):
             VggBasicBlock(in_planes=256, out_planes=512),
             nn.MaxPool2d(kernel_size=2, stride=2),
         )
+        self.V = torch.load('enet_b2_8.pt',map_location=device)
+        self.V.classifier = torch.nn.Identity()
+
 
         self.A = nn.Sequential(
             nn.Conv2d(in_channels=1, out_channels=64, kernel_size=5, padding=2),
@@ -221,7 +225,7 @@ class E2EMBT(nn.Module):
         )
 
         self.v_flatten = nn.Sequential(
-            nn.Linear(512 * 3 * 3, 1024),
+            nn.Linear(1408, 1024),
             nn.ReLU(),
             nn.Linear(1024, trans_dim)
         )
@@ -267,17 +271,9 @@ class E2EMBT(nn.Module):
             text_lens = text["attention_mask"][:, 1:].sum(1)
 
         if 'v' in self.mod:
-            faces = self.mtcnn(imgs)
-            for i, face in enumerate(faces):
-                if face is None:
-                    center = self.crop_img_center(torch.tensor(imgs[i]).permute(2, 0, 1))
-                    faces[i] = center
-            faces = [self.normalize(face) for face in faces]
-            faces = torch.stack(faces, dim=0).to(device=self.device)
-
-            faces = self.V(faces)
-
-            faces = self.v_flatten(faces.flatten(start_dim=1))
+            imgs = imgs.to(self.device)
+            faces = self.V(imgs)
+            faces = self.v_flatten(faces)
             v = self.v_transformer(faces, imgs_lens)
 
 

@@ -107,7 +107,7 @@ if __name__ == "__main__":
             optimizer = torch.optim.Adam([
                 {'params': model.T.parameters(), 'lr': lr / args['text_lr_factor']},
                 {'params': model.t_out.parameters(), 'lr': lr / args['text_lr_factor']},
-                {'params': model.V.parameters()},
+                {'params': model.V.parameters(), 'lr': lr / args['text_lr_factor']},
                 {'params': model.v_flatten.parameters()},
                 {'params': model.v_transformer.parameters()},
                 {'params': model.v_out.parameters()},

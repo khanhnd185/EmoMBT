@@ -17,7 +17,7 @@ def getEmotionDict() -> Dict[str, int]:
     return {'ang': 0, 'exc': 1, 'fru': 2, 'hap': 3, 'neu': 4, 'sad': 5}
 
 def get_dataset_iemocap(data_folder: str, phase: str, img_interval: int, hand_crafted_features: Optional[bool] = False):
-    main_folder = os.path.join(data_folder, 'IEMOCAP_RAW_PROCESSED')
+    main_folder = os.path.join(data_folder, 'IEMOCAP')
     meta = load(os.path.join(main_folder, 'meta.pkl'))
 
     emoDict = getEmotionDict()
@@ -57,7 +57,7 @@ def get_dataset_iemocap(data_folder: str, phase: str, img_interval: int, hand_cr
     return this_dataset
 
 def get_dataset_mosei(data_folder: str, phase: str, img_interval: int, hand_crafted_features: Optional[bool] = False):
-    main_folder = os.path.join(data_folder, 'MOSEI_RAW_PROCESSED')
+    main_folder = os.path.join(data_folder, 'MOSEI')
     meta = load(os.path.join(main_folder, 'meta.pkl'))
 
     ids = open(os.path.join(data_folder, 'MOSEI_SPLIT', f'{phase}_split.txt'), 'r').read().splitlines()
@@ -153,7 +153,14 @@ class MOSEI(Dataset):
         self.labels = np.array(labels)
         self.main_folder = main_folder
         self.img_interval = img_interval
-        self.crop = transforms.CenterCrop(360)
+        self.transform = transforms.Compose(
+            [
+                transforms.Resize((260, 260)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                    std=[0.229, 0.224, 0.225])
+            ]
+        )
 
     def get_annotations(self) -> List[str]:
         return ['anger', 'disgust', 'fear', 'happy', 'sad', 'surprise']
@@ -196,17 +203,10 @@ class MOSEI(Dataset):
         this_id = self.ids[ind]
         sample_folder = os.path.join(self.main_folder, this_id)
 
-        sampledImgs = []
-        for imgPath in self.sample_imgs_by_interval(sample_folder):
-            this_img = Image.open(imgPath)
-            H = np.float32(this_img).shape[0]
-            W = np.float32(this_img).shape[1]
-            if H > 360:
-                resize = transforms.Resize([H // 2, W // 2])
-                this_img = resize(this_img)
-            this_img = self.crop(this_img)
-            sampledImgs.append(np.float32(this_img))
-        sampledImgs = np.array(sampledImgs)
+        sampledImgs = [
+            self.transform(Image.open(imgPath)) # .transpose()
+            for imgPath in self.sample_imgs_by_interval(sample_folder)
+        ]
 
         waveform, sr = torchaudio.load(os.path.join(sample_folder, f'audio.wav'))
 
@@ -230,10 +230,18 @@ class IEMOCAP(Dataset):
         self.label_annotations = label_annotations
 
         self.utteranceFolders = {
-            folder.split('\\')[-1]: folder
+            folder.split('/')[-1]: folder
             for folder in glob.glob(os.path.join(main_folder, '**/*'))
         }
         self.img_interval = img_interval
+        self.transform = transforms.Compose(
+            [
+                transforms.Resize((260, 260)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                    std=[0.229, 0.224, 0.225])
+            ]
+        )
 
     def get_annotations(self) -> List[str]:
         return self.label_annotations
@@ -302,10 +310,10 @@ class IEMOCAP(Dataset):
         audio_suffix = 'L' if use_left else 'R'
         imgNamePrefix = f'image_{suffix}_'
 
-        sampledImgs = np.array([
-            np.float32(Image.open(imgPath)) # .transpose()
+        sampledImgs = [
+            self.transform(Image.open(imgPath)) # .transpose()
             for imgPath in self.sample_imgs_by_interval(uttrFolder, imgNamePrefix)
-        ])
+        ]
 
         waveform, sr = torchaudio.load(os.path.join(uttrFolder, f'audio_{audio_suffix}.wav'))
 
@@ -332,14 +340,18 @@ def collate_fn(batch):
 
     for dp in batch:
         utteranceId, sampledImgs, specgram, text, label = dp
-        if sampledImgs.shape[0] == 0:
+        if len(sampledImgs) == 0:
             continue
         utterance_ids.append(utteranceId)
         texts.append(text)
         labels.append(label)
 
-        imgSeqLens.append(sampledImgs.shape[0])
-        newSampledImgs = sampledImgs if newSampledImgs is None else np.concatenate((newSampledImgs, sampledImgs), axis=0)
+        imgSeqLens.append(len(sampledImgs))
+        if newSampledImgs is None:
+            newSampledImgs = torch.stack(sampledImgs, dim=0)
+        else:
+            sampledImgs = torch.stack(sampledImgs, dim=0)
+            newSampledImgs = torch.cat((newSampledImgs, sampledImgs), dim=0)
 
         specgramSeqLens.append(len(specgram))
         specgrams.append(torch.cat(specgram, dim=0))
