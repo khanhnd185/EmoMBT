@@ -180,6 +180,7 @@ class E2EMBT(nn.Module):
         self.args = args
         self.mod = args['modalities'].lower()
         self.device = device
+        self.infer = args['infer']
         self.fusion = args['fusion']
         bot_nlayers = args['bot_nlayers']
         nlayers = args['trans_nlayers']
@@ -318,11 +319,23 @@ class E2EMBT(nn.Module):
             z = self.gated_activate(z)
             out = h * z.permute(0, 2, 1)
             return torch.sum(out, 2)
+        elif self.fusion == 'dict':
+            return {
+                "audio": self.a_out(cls_a),
+                "text": self.v_out(cls_v),
+                "visual": self.t_out(cls_t),
+            }
         else:
-            all_logits.append(self.t_out(cls_t))
-            all_logits.append(self.v_out(cls_v))
-            all_logits.append(self.a_out(cls_a))
-            return self.weighted_fusion(torch.stack(all_logits, dim=-1)).squeeze(-1)
+            cls_t = self.t_out(cls_t)
+            cls_v = self.v_out(cls_v)
+            cls_a = self.a_out(cls_a)
+            fusion = self.weighted_fusion(torch.stack([cls_t, cls_v, cls_a], dim=-1)).squeeze(-1)
+            return {
+                "audio": cls_a,
+                "text": cls_v,
+                "visual": cls_t,
+                "fusion": fusion,
+            }
 
     def crop_img_center(self, img: torch.tensor, target_size=48):
         current_size = img.size(1)

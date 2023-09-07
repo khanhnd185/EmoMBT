@@ -13,14 +13,17 @@ class IemocapTrainer(TrainerBase):
         self.args = args
         self.text_max_len = args['text_max_len']
         self.tokenizer = AlbertTokenizer.from_pretrained(f'albert-base-v2')
-        self.eval_func = eval_iemocap if args['loss'] == 'bce' else eval_iemocap_ce
+        if self.args['loss'] in ['dwa', 'bce', 'mean', 'rruw', 'druw']:
+            self.eval_func = eval_iemocap
+        else:
+            self.eval_func = eval_iemocap_ce
         self.all_train_stats = []
         self.all_valid_stats = []
         self.all_test_stats = []
 
         annotations = dataloaders['train'].dataset.get_annotations()
 
-        if self.args['loss'] == 'bce':
+        if self.args['loss'] in ['dwa', 'bce', 'mean', 'rruw', 'druw']:
             self.headers = [
                 ['phase (acc)', *annotations, 'average'],
                 ['phase (recall)', *annotations, 'average'],
@@ -163,17 +166,37 @@ class IemocapTrainer(TrainerBase):
             text = text.to(device=self.device)
             Y = Y.to(device=self.device)
 
+            if self.model.fusion == 'dict':
+                Y_dict = {
+                "audio": Y,
+                "text": Y,
+                "visual": Y
+            }
+            elif self.model.fusion == 'mlp':
+                Y_dict = {
+                "audio": Y,
+                "text": Y,
+                "visual": Y,
+                "fusion": Y
+            }
+
             self.optimizer.zero_grad()
             with torch.set_grad_enabled(True):
                 logits = self.model(imgs, imgLens, specgrams, specgramLens, text) # (batch_size, num_classes)
-                loss = self.criterion(logits, Y)
+                if self.model.fusion in ['dict', 'mlp']:
+                    loss = self.criterion.forward(logits, Y_dict)
+                else:
+                    loss = self.criterion(logits, Y)
                 loss.backward()
                 epoch_loss += loss.item() * Y.size(0)
                 data_size += Y.size(0)
                 if self.args['clip'] > 0:
                     clip_grad_norm_(self.model.parameters(), self.args['clip'])
                 self.optimizer.step()
-            total_logits.append(logits.cpu())
+            if self.model.fusion in ['dict', 'mlp']:
+                total_logits.append(logits[self.model.infer].cpu())
+            else:
+                total_logits.append(logits.cpu())
             total_Y.append(Y.cpu())
             pbar.set_description("train loss:{:.4f}".format(epoch_loss / data_size))
             if self.scheduler is not None:
@@ -208,13 +231,33 @@ class IemocapTrainer(TrainerBase):
             text = text.to(device=self.device)
             Y = Y.to(device=self.device)
 
+            if self.model.fusion == 'dict':
+                Y_dict = {
+                "audio": Y,
+                "text": Y,
+                "visual": Y
+            }
+            elif self.model.fusion == 'mlp':
+                Y_dict = {
+                "audio": Y,
+                "text": Y,
+                "visual": Y,
+                "fusion": Y
+            }
+
             with torch.set_grad_enabled(False):
                 logits = self.model(imgs, imgLens, specgrams, specgramLens, text) # (batch_size, num_classes)
-                loss = self.criterion(logits, Y)
+                if self.model.fusion in ['dict', 'mlp']:
+                    loss = self.criterion.forward(logits, Y_dict)
+                else:
+                    loss = self.criterion(logits, Y)
                 epoch_loss += loss.item() * Y.size(0)
                 data_size += Y.size(0)
 
-            total_logits.append(logits.cpu())
+            if self.model.fusion in ['dict', 'mlp']:
+                total_logits.append(logits[self.model.infer].cpu())
+            else:
+                total_logits.append(logits.cpu())
             total_Y.append(Y.cpu())
 
             pbar.set_description(f"{phase} loss:{epoch_loss/data_size:.4f}")

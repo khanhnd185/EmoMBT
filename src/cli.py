@@ -21,6 +21,7 @@ def get_args():
     parser.add_argument('-mo', '--model', help='Which model', type=str, required=False, default='mme2e')
     parser.add_argument('--custom', help='Custome name', type=str, required=False, default='default')
     parser.add_argument('--fusion', help='How to fuse modalities', type=str, required=False, default='mlp')
+    parser.add_argument('--infer', help='How to fuse modalities', type=str, required=False, default='visual')
     parser.add_argument('--feature-dim', help='Dimension of features outputed by each modality model', type=int, required=False, default=256)
     parser.add_argument('-st', '--sparse-threshold', help='Threshold of sparse CNN layers', type=float, required=False, default=0.9)
     parser.add_argument('-hfcs', '--hfc-sizes', help='Hand crafted feature sizes', nargs='+', type=int, required=False, default=[300, 144, 35])

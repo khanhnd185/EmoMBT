@@ -12,6 +12,7 @@ from src.models.e2e import MME2E
 from src.models.baselines.lf_rnn import LF_RNN
 from src.models.baselines.lf_transformer import LF_Transformer
 from src.trainers.emotiontrainer import IemocapTrainer
+from src.loss import criterion_factory
 
 if __name__ == "__main__":
     start = time.time()
@@ -107,7 +108,7 @@ if __name__ == "__main__":
             optimizer = torch.optim.Adam([
                 {'params': model.T.parameters(), 'lr': lr / args['text_lr_factor']},
                 {'params': model.t_out.parameters(), 'lr': lr / args['text_lr_factor']},
-                {'params': model.V.parameters(), 'lr': lr / args['text_lr_factor']},
+                #{'params': model.V.parameters(), 'lr': lr / args['text_lr_factor']},
                 {'params': model.v_flatten.parameters()},
                 {'params': model.v_transformer.parameters()},
                 {'params': model.v_out.parameters()},
@@ -166,6 +167,11 @@ if __name__ == "__main__":
         pos_weight = torch.tensor(pos_weight).to(device)
         criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
         # criterion = torch.nn.BCEWithLogitsLoss()
+    else:
+        pos_weight = train_dataset.getPosWeight()
+        pos_weight = torch.tensor(pos_weight).to(device)
+        criterion = criterion_factory(args['fusion'], args['loss'], pos_weight, device)
+
 
     if args['dataset'] == 'iemocap' or 'mosei':
         trainer = IemocapTrainer(args, model, criterion, optimizer, scheduler, device, dataloaders)
