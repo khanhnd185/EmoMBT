@@ -99,9 +99,9 @@ class MBT(nn.Module):
         bot_av = self.bot_av.expand(B, -1, -1)
         bot_vt = self.bot_vt.expand(B, -1, -1)
         bot_ta = self.bot_ta.expand(B, -1, -1)
-        v = torch.cat((bot_av, bot_vt, v), dim=1)
-        a = torch.cat((bot_av, bot_ta, a), dim=1)
-        t = torch.cat((bot_vt, bot_ta, t), dim=1)
+        v = torch.cat((bot_ta, bot_vt, t), dim=1)
+        a = torch.cat((bot_ta, bot_av, a), dim=1)
+        t = torch.cat((bot_vt, bot_av, v), dim=1)
 
         v = v.permute(1, 0, 2)
         a = a.permute(1, 0, 2)
@@ -120,6 +120,68 @@ class MBT(nn.Module):
 
             t[:self.num_bottle_token] = (t[:self.num_bottle_token] + v[self.num_bottle_token:self.cls_index]) / 2
             v[self.num_bottle_token:self.cls_index] = t[:self.num_bottle_token]
+
+        return t[self.cls_index], v[self.cls_index], a[self.cls_index]
+
+
+
+class MBTT(nn.Module):
+    def __init__(self, dim, num_layers, num_heads, num_bottle_token):
+        super(MBTT, self).__init__()
+        self.dim = dim
+        self.num_layers = num_layers
+        self.num_bottle_token = num_bottle_token
+        self.cls_index = 2 * self.num_bottle_token
+        encoder_layer = TransformerEncoderLayer(d_model=dim, nhead=num_heads)
+
+        self.a_layers = _get_clones(encoder_layer, num_layers)
+        self.v_layers = _get_clones(encoder_layer, num_layers)
+        self.t_layers = _get_clones(encoder_layer, num_layers)
+
+        self.bot_vt = nn.Parameter(torch.zeros(1, num_bottle_token, dim))
+        self.bot_ta = nn.Parameter(torch.zeros(1, num_bottle_token, dim))
+
+        trunc_normal_(self.bot_vt, std=.02)
+        trunc_normal_(self.bot_ta, std=.02)
+
+
+    def get_mask(self, lens, device, is_t=False):
+        if is_t:
+            max_len = 99
+            mask = [([False] * (l + 1 + self.cls_index) + [True] * (max_len - l)) for l in lens]
+        else:
+            max_len = max(lens)
+            mask = [([False] * (l + 1 + self.num_bottle_token) + [True] * (max_len - l)) for l in lens]
+        return torch.tensor(mask).to(device=device)
+
+    def forward(self, v: torch.Tensor, v_lens, a: torch.Tensor, a_lens, t: torch.Tensor, t_lens):
+        B = v.shape[0]
+
+        mask_a = self.get_mask(a_lens, a.device)
+        mask_v = self.get_mask(v_lens, v.device)
+        mask_t = self.get_mask(t_lens, t.device, is_t=True)
+
+        bot_vt = self.bot_vt.expand(B, -1, -1)
+        bot_ta = self.bot_ta.expand(B, -1, -1)
+        v = torch.cat((bot_ta, bot_vt, t), dim=1)
+        a = torch.cat((bot_ta, a), dim=1)
+        t = torch.cat((bot_vt, v), dim=1)
+
+        v = v.permute(1, 0, 2)
+        a = a.permute(1, 0, 2)
+        t = t.permute(1, 0, 2)
+
+        for i in range(self.num_layers):
+            v = self.v_layers[i](src=v, src_key_padding_mask=mask_v)
+            a = self.a_layers[i](src=a, src_key_padding_mask=mask_a)
+            t = self.t_layers[i](src=t, src_key_padding_mask=mask_t)
+
+            t[:self.num_bottle_token] = (t[:self.num_bottle_token] + a[:self.num_bottle_token]) / 2
+            a[:self.num_bottle_token] = v[:self.num_bottle_token]
+
+            t[self.num_bottle_token:self.cls_index] = (v[:self.num_bottle_token] + t[self.num_bottle_token:self.cls_index]) / 2
+            v[:self.num_bottle_token] = t[self.num_bottle_token:self.cls_index]
+
 
         return t[self.cls_index], v[self.cls_index], a[self.cls_index]
 
@@ -240,7 +302,10 @@ class E2EMBT(nn.Module):
         self.v_transformer = WrappedTransformerEncoder(dim=trans_dim, num_layers=nlayers, num_heads=nheads)
         self.a_transformer = WrappedTransformerEncoder(dim=trans_dim, num_layers=nlayers, num_heads=nheads)
 
-        if len(self.mod) == 3:
+        if self.fusion == 'text2':
+            self.mbt = MBTT(trans_dim, bot_nlayers, nheads, 1)
+            self.fusion = 'text'
+        elif len(self.mod) == 3:
             self.mbt = MBT(trans_dim, bot_nlayers, nheads, 1)
         else:
             self.mbt = MBT2(trans_dim, bot_nlayers, nheads, 1, y_is_text=('t' in self.mod))
