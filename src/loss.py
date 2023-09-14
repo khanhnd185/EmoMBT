@@ -92,7 +92,7 @@ class DynamicUncertaintyCriterion(Criterion):
     See Song et al. (2022)
     """
 
-    def __init__(self, fusion, pos_weight, device) -> None:
+    def __init__(self, fusion, pos_weight, device, temp) -> None:
         super().__init__(fusion, pos_weight)
 
         N = len(self.tasks)
@@ -102,7 +102,7 @@ class DynamicUncertaintyCriterion(Criterion):
       
         self.phi = 1.0    # constraint value
         self.kappa = N   # scales the dynamic weights
-        self.temperature = 10   # default value for smoothing softmax
+        self.temperature = temp   # default value for smoothing softmax
 
         self.loss_t_1 = None
         self.loss_t_2 = None
@@ -147,11 +147,11 @@ class DynamicUncertaintyCriterion(Criterion):
 
 
 class DynamicWeightAverageCriterion(Criterion):
-    def __init__(self, fusion, pos_weight) -> None:
+    def __init__(self, fusion, pos_weight, temp) -> None:
         super().__init__(fusion, pos_weight)
 
         self.kappa = len(self.tasks)
-        self.temperature = 10.0
+        self.temperature = temp
 
         self.loss_t_1 = None
         self.loss_t_2 = None
@@ -188,7 +188,7 @@ class DynamicWeightAverageCriterion(Criterion):
 
 
 
-def criterion_factory(fusion, loss_strategy, pos_weight, device) -> Criterion:
+def criterion_factory(fusion, loss_strategy, temp, pos_weight, device) -> Criterion:
     """
     factory helper that generates the desired criterion based on the loss_strategy flag
     :params Params object, containing train.loss_strategy str, one of [mean, rruw, druw]
@@ -202,10 +202,10 @@ def criterion_factory(fusion, loss_strategy, pos_weight, device) -> Criterion:
         return UncertaintyCriterion(fusion, pos_weight, device)
     elif loss_strategy == "druw":
         print("Using Dynamic Restrained Uncertainty Weighting for losses")
-        return DynamicUncertaintyCriterion(fusion, pos_weight, device)
+        return DynamicUncertaintyCriterion(fusion, pos_weight, device, temp)
     elif loss_strategy == "dwa":
         print("Using Dynamic Weight Averaging for losses")
-        return DynamicWeightAverageCriterion(fusion, pos_weight)
+        return DynamicWeightAverageCriterion(fusion, pos_weight, temp)
     else: 
         raise NotImplementedError("{} not implemented".format(loss_strategy))
 

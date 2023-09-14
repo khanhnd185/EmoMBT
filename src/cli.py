@@ -30,6 +30,7 @@ def get_args():
     parser.add_argument('--bot-nlayers', help='Number of bottleneck layers of the MBT', type=int, required=False, default=2)
     parser.add_argument('--trans-nheads', help='Number of heads of the transformer after CNN', type=int, required=False, default=8)
     parser.add_argument('-aft', '--audio-feature-type', help='Hand crafted audio feature types', type=int, default=0)
+    parser.add_argument('--temperature', help='Temperature', type=float, default=10.0)
 
     # Data
     parser.add_argument('--num-emotions', help='Number of emotions in data', type=int, required=False, default=4)

@@ -170,7 +170,7 @@ if __name__ == "__main__":
     else:
         pos_weight = train_dataset.getPosWeight()
         pos_weight = torch.tensor(pos_weight).to(device)
-        criterion = criterion_factory(args['fusion'], args['loss'], pos_weight, device)
+        criterion = criterion_factory(args['fusion'], args['loss'], args['temperature'], pos_weight, device)
 
 
     if args['dataset'] == 'iemocap' or 'mosei':
