@@ -112,14 +112,14 @@ class MBT(nn.Module):
             a = self.a_layers[i](src=a, src_key_padding_mask=mask_a)
             t = self.t_layers[i](src=t, src_key_padding_mask=mask_t)
 
-            v[:self.num_bottle_token] = (v[:self.num_bottle_token] + a[:self.num_bottle_token]) / 2
-            a[:self.num_bottle_token] = v[:self.num_bottle_token]
+            t[:self.num_bottle_token] = (t[:self.num_bottle_token] + a[:self.num_bottle_token]) / 2
+            a[:self.num_bottle_token] = t[:self.num_bottle_token]
 
-            a[self.num_bottle_token:self.cls_index] = (a[self.num_bottle_token:self.cls_index] + t[self.num_bottle_token:self.cls_index]) / 2
-            t[self.num_bottle_token:self.cls_index] = a[self.num_bottle_token:self.cls_index]
+            a[self.num_bottle_token:self.cls_index] = (a[self.num_bottle_token:self.cls_index] + v[self.num_bottle_token:self.cls_index]) / 2
+            v[self.num_bottle_token:self.cls_index] = a[self.num_bottle_token:self.cls_index]
 
-            t[:self.num_bottle_token] = (t[:self.num_bottle_token] + v[self.num_bottle_token:self.cls_index]) / 2
-            v[self.num_bottle_token:self.cls_index] = t[:self.num_bottle_token]
+            v[:self.num_bottle_token] = (v[:self.num_bottle_token] + t[self.num_bottle_token:self.cls_index]) / 2
+            t[self.num_bottle_token:self.cls_index] = v[:self.num_bottle_token]
 
         return t[self.cls_index], v[self.cls_index], a[self.cls_index]
 
@@ -177,7 +177,7 @@ class MBTT(nn.Module):
             t = self.t_layers[i](src=t, src_key_padding_mask=mask_t)
 
             t[:self.num_bottle_token] = (t[:self.num_bottle_token] + a[:self.num_bottle_token]) / 2
-            a[:self.num_bottle_token] = v[:self.num_bottle_token]
+            a[:self.num_bottle_token] = t[:self.num_bottle_token]
 
             t[self.num_bottle_token:self.cls_index] = (v[:self.num_bottle_token] + t[self.num_bottle_token:self.cls_index]) / 2
             v[:self.num_bottle_token] = t[self.num_bottle_token:self.cls_index]
