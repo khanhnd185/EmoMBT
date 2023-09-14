@@ -99,9 +99,9 @@ class MBT(nn.Module):
         bot_av = self.bot_av.expand(B, -1, -1)
         bot_vt = self.bot_vt.expand(B, -1, -1)
         bot_ta = self.bot_ta.expand(B, -1, -1)
-        v = torch.cat((bot_ta, bot_vt, t), dim=1)
+        t = torch.cat((bot_ta, bot_vt, t), dim=1)
         a = torch.cat((bot_ta, bot_av, a), dim=1)
-        t = torch.cat((bot_vt, bot_av, v), dim=1)
+        v = torch.cat((bot_vt, bot_av, v), dim=1)
 
         v = v.permute(1, 0, 2)
         a = a.permute(1, 0, 2)
@@ -163,9 +163,9 @@ class MBTT(nn.Module):
 
         bot_vt = self.bot_vt.expand(B, -1, -1)
         bot_ta = self.bot_ta.expand(B, -1, -1)
-        v = torch.cat((bot_ta, bot_vt, t), dim=1)
+        t = torch.cat((bot_ta, bot_vt, t), dim=1)
         a = torch.cat((bot_ta, a), dim=1)
-        t = torch.cat((bot_vt, v), dim=1)
+        v = torch.cat((bot_vt, v), dim=1)
 
         v = v.permute(1, 0, 2)
         a = a.permute(1, 0, 2)
