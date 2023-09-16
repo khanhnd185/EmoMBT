@@ -81,18 +81,18 @@ class IemocapTrainer(TrainerBase):
                 else:
                     self.earlyStop -= 1
             else:
-                for i in range(len(self.headers)):
-                    for j in range(len(valid_stats[i])):
-                        is_pivot = (i == 3 and j == (len(valid_stats[i]) - 1)) # auc average
-                        if valid_stats[i][j] > self.best_valid_stats[i][j]:
+                if (valid_stats[3][-1] + valid_stats[0][-1]) > (self.best_valid_stats[3][-1] + self.best_valid_stats[0][-1]):
+                    for i in range(len(self.headers)):
+                        for j in range(len(valid_stats[i])):
                             self.best_valid_stats[i][j] = valid_stats[i][j]
-                            if is_pivot:
-                                self.earlyStop = self.args['early_stop']
-                                self.best_epoch = epoch
-                                self.best_model = copy.deepcopy(self.model.state_dict())
-                        elif is_pivot:
-                            self.earlyStop -= 1
 
+                    self.earlyStop = self.args['early_stop']
+                    self.best_epoch = epoch
+                    self.best_model = copy.deepcopy(self.model.state_dict())
+                else:
+                    self.earlyStop -= 1
+
+                for i in range(len(self.headers)):
                     train_stats_str = self.make_stat(self.prev_train_stats[i], train_stats[i])
                     valid_stats_str = self.make_stat(self.prev_valid_stats[i], valid_stats[i])
                     test_stats_str = self.make_stat(self.prev_test_stats[i], test_stats[i])
