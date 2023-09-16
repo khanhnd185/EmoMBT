@@ -10,6 +10,7 @@ from torch.utils.data.dataset import Dataset
 from typing import List, Dict, Tuple, Optional
 from src.utils import load, padTensor, get_max_len
 from PIL import Image
+from torchvggish import vggish_input
 
 audio_feature_indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 655, 656, 657, 658, 659, 660, 661, 662, 663, 664, 665, 666, 667, 668, 669, 670, 671, 672, 673, 674, 675, 676, 677, 678, 679, 680, 681, 682, 683, 684, 685, 686, 687, 688, 689, 690, 691, 692, 693, 694, 695, 696, 697, 698, 699, 700, 701, 702, 703, 704, 705, 706, 707, 708, 709, 710, 711, 712, 713, 714, 715, 716, 717, 718, 719, 720, 721, 722, 723, 724, 725, 726, 727, 728, 729, 730, 731, 732, 733, 734, 735, 736, 737, 738, 739, 740, 741, 742, 743, 744, 745, 746, 747, 748, 749, 750, 751, 752, 753, 754, 755, 756, 757, 758, 759, 760, 761, 762]
 
@@ -208,15 +209,7 @@ class MOSEI(Dataset):
             for imgPath in self.sample_imgs_by_interval(sample_folder)
         ]
 
-        waveform, sr = torchaudio.load(os.path.join(sample_folder, f'audio.wav'))
-
-        # Cut Spec
-        specgram = torchaudio.transforms.MelSpectrogram(
-            sample_rate=sr,
-            win_length=int(float(sr) / 16000 * 400),
-            n_fft=int(float(sr) / 16000 * 400)
-        )(waveform).unsqueeze(0)
-        specgrams = self.cutSpecToPieces(specgram)
+        specgrams = vggish_input.wavfile_to_examples(os.path.join(sample_folder, f'audio.wav'))
 
         return this_id, sampledImgs, specgrams, self.texts[ind], self.labels[ind]
 
@@ -315,15 +308,7 @@ class IEMOCAP(Dataset):
             for imgPath in self.sample_imgs_by_interval(uttrFolder, imgNamePrefix)
         ]
 
-        waveform, sr = torchaudio.load(os.path.join(uttrFolder, f'audio_{audio_suffix}.wav'))
-
-        # Cut WAV
-        # waveformPieces = self.cutWavToPieces(waveform, sr)
-        # specgrams = [torchaudio.transforms.MelSpectrogram()(waveformPiece).unsqueeze(0) for waveformPiece in waveformPieces]
-
-        # Cut Spec
-        specgram = torchaudio.transforms.MelSpectrogram(sample_rate=sr, win_length=int(float(sr) / 16000 * 400))(waveform).unsqueeze(0)
-        specgrams = self.cutSpecToPieces(specgram)
+        specgrams = vggish_input.wavfile_to_examples(os.path.join(uttrFolder, f'audio_{audio_suffix}.wav'))
 
         return uttrId, sampledImgs, specgrams, self.texts[ind], self.labels[ind]
 
@@ -353,8 +338,8 @@ def collate_fn(batch):
             sampledImgs = torch.stack(sampledImgs, dim=0)
             newSampledImgs = torch.cat((newSampledImgs, sampledImgs), dim=0)
 
-        specgramSeqLens.append(len(specgram))
-        specgrams.append(torch.cat(specgram, dim=0))
+        specgramSeqLens.append(specgram.shape[0])
+        specgrams.append(specgram)
 
     imgs = newSampledImgs
 

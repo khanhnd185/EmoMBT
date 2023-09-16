@@ -10,6 +10,7 @@ from facenet_pytorch import MTCNN
 from src.models.vgg_block import VggBasicBlock
 
 from torch.nn import TransformerEncoderLayer
+from torchvggish import vggish
 
 class MME2E_T(nn.Module):
     def __init__(self, feature_dim, size='base'):
@@ -209,21 +210,7 @@ class E2EMBT(nn.Module):
         self.V = torch.load('enet_b2_8.pt',map_location=device)
         self.V.classifier = torch.nn.Identity()
 
-
-        self.A = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=64, kernel_size=5, padding=2),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            VggBasicBlock(in_planes=64, out_planes=64),
-            VggBasicBlock(in_planes=64, out_planes=64),
-            VggBasicBlock(in_planes=64, out_planes=128),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            VggBasicBlock(in_planes=128, out_planes=256),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            VggBasicBlock(in_planes=256, out_planes=512),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-        )
+        self.A = vggish(postprocess=False)
 
         self.v_flatten = nn.Sequential(
             nn.Linear(1408, 1024),
@@ -232,9 +219,9 @@ class E2EMBT(nn.Module):
         )
 
         self.a_flatten = nn.Sequential(
-            nn.Linear(512 * 8 * 2, 1024),
+            nn.Linear(128, 96),
             nn.ReLU(),
-            nn.Linear(1024, trans_dim)
+            nn.Linear(96, trans_dim)
         )
 
         self.v_transformer = WrappedTransformerEncoder(dim=trans_dim, num_layers=nlayers, num_heads=nheads)
@@ -279,10 +266,8 @@ class E2EMBT(nn.Module):
 
 
         if 'a' in self.mod:
-            for a_module in self.A:
-                specs = a_module(specs)
-
-            specs = self.a_flatten(specs.flatten(start_dim=1))
+            specs = self.A(specs)
+            specs = self.a_flatten(specs)
             a = self.a_transformer(specs, spec_lens)
 
         if len(self.mod) == 3:

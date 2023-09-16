@@ -5,8 +5,6 @@ import numpy as np
 from torch.utils.data import DataLoader
 from src.cli import get_args
 from src.datasets import get_dataset_iemocap, collate_fn, HCFDataLoader, get_dataset_mosei, collate_fn_hcf_mosei
-# from src.models.e2e import MME2E
-# from src.models.sparse_e2e import MME2E_Sparse
 from src.models.mbt import E2EMBT
 from src.models.e2e import MME2E
 from src.models.baselines.lf_rnn import LF_RNN
@@ -108,11 +106,11 @@ if __name__ == "__main__":
             optimizer = torch.optim.Adam([
                 {'params': model.T.parameters(), 'lr': lr / args['text_lr_factor']},
                 {'params': model.t_out.parameters(), 'lr': lr / args['text_lr_factor']},
-                #{'params': model.V.parameters(), 'lr': lr / args['text_lr_factor']},
+                {'params': model.V.parameters(), 'lr': lr / args['text_lr_factor']},
                 {'params': model.v_flatten.parameters()},
                 {'params': model.v_transformer.parameters()},
                 {'params': model.v_out.parameters()},
-                {'params': model.A.parameters()},
+                {'params': model.A.parameters(), 'lr': lr / args['text_lr_factor']},
                 {'params': model.a_flatten.parameters()},
                 {'params': model.a_transformer.parameters()},
                 {'params': model.a_out.parameters()},
