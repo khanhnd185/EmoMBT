@@ -20,6 +20,7 @@ def get_args():
     # Model
     parser.add_argument('-mo', '--model', help='Which model', type=str, required=False, default='mme2e')
     parser.add_argument('--custom', help='Custome name', type=str, required=False, default='default')
+    parser.add_argument('--resume', help='Load model name', type=str, required=False, default='')
     parser.add_argument('--fusion', help='How to fuse modalities', type=str, required=False, default='mlp')
     parser.add_argument('--infer', help='How to fuse modalities', type=str, required=False, default='visual')
     parser.add_argument('--feature-dim', help='Dimension of features outputed by each modality model', type=int, required=False, default=256)

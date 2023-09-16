@@ -12,6 +12,18 @@ from src.models.baselines.lf_transformer import LF_Transformer
 from src.trainers.emotiontrainer import IemocapTrainer
 from src.loss import criterion_factory
 
+def load_state_dict(model,path):
+    state_dict = torch.load(path,map_location=torch.device('cpu'))
+    from collections import OrderedDict
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        if 'module.' in k:
+            k = k[7:]  # remove `module.`
+        new_state_dict[k] = v
+    # load params
+    model.load_state_dict(new_state_dict,strict=False)
+    return model
+
 if __name__ == "__main__":
     start = time.time()
 
@@ -148,6 +160,10 @@ if __name__ == "__main__":
         optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=args['weight_decay'])
     else:
         raise ValueError('Incorrect model name!')
+
+    if args['resume'] != "":
+        model = load_state_dict(model, args['resume'])
+        model = model.to(device=device)
 
     if args['scheduler']:
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args['epochs'] * len(train_loader.dataset) // args['batch_size'])
