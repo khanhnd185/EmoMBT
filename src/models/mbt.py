@@ -125,6 +125,96 @@ class MBT(nn.Module):
         return t[self.cls_index], v[self.cls_index], a[self.cls_index]
 
 
+class OEMBT(nn.Module):
+    def __init__(self, dim, num_layers, num_heads, num_bottle_token, center_modal='text'):
+        super(OEMBT, self).__init__()
+        self.dim = dim
+        self.num_layers = num_layers
+        self.center_modal = center_modal
+        self.num_bottle_token = num_bottle_token
+        self.cls_index = 2 * self.num_bottle_token
+        encoder_layer = TransformerEncoderLayer(d_model=dim, nhead=num_heads)
+
+        self.a_layers = _get_clones(encoder_layer, num_layers)
+        self.v_layers = _get_clones(encoder_layer, num_layers)
+        self.t_layers = _get_clones(encoder_layer, num_layers)
+
+        self.bot_av = nn.Parameter(torch.zeros(1, num_bottle_token, dim))
+        self.bot_vt = nn.Parameter(torch.zeros(1, num_bottle_token, dim))
+        self.bot_ta = nn.Parameter(torch.zeros(1, num_bottle_token, dim))
+
+        trunc_normal_(self.bot_av, std=.02)
+        trunc_normal_(self.bot_vt, std=.02)
+        trunc_normal_(self.bot_ta, std=.02)
+
+
+    def get_mask(self, lens, device, is_t=False, is_center_modal=False):
+        if is_t:
+            max_len = 99
+        else:
+            max_len = max(lens)
+        if is_center_modal:
+            mask = [([False] * (l + 1 + self.cls_index) + [True] * (max_len - l)) for l in lens]
+        else:
+            mask = [([False] * (l + 1 + self.num_bottle_token) + [True] * (max_len - l)) for l in lens]
+        return torch.tensor(mask).to(device=device)
+
+    def forward(self, v: torch.Tensor, v_lens, a: torch.Tensor, a_lens, t: torch.Tensor, t_lens):
+        B = v.shape[0]
+
+        mask_a = self.get_mask(a_lens, a.device, is_center_modal=(self.center_modal=='audio'))
+        mask_v = self.get_mask(v_lens, v.device, is_center_modal=(self.center_modal=='visual'))
+        mask_t = self.get_mask(t_lens, t.device, is_t=True, is_center_modal=(self.center_modal=='text'))
+
+        bot_av = self.bot_av.expand(B, -1, -1)
+        bot_vt = self.bot_vt.expand(B, -1, -1)
+        bot_ta = self.bot_ta.expand(B, -1, -1)
+        if self.center_modal == 'audio':
+            v = torch.cat((bot_av, v), dim=1)
+            a = torch.cat((bot_av, bot_ta, a), dim=1)
+            t = torch.cat((bot_ta, t), dim=1)
+        elif self.center_modal == 'visual':
+            v = torch.cat((bot_av, bot_vt, v), dim=1)
+            a = torch.cat((bot_av, a), dim=1)
+            t = torch.cat((bot_vt, t), dim=1)
+        else:
+            v = torch.cat((bot_vt, v), dim=1)
+            a = torch.cat((bot_ta, a), dim=1)
+            t = torch.cat((bot_vt, bot_ta, t), dim=1)
+
+        v = v.permute(1, 0, 2)
+        a = a.permute(1, 0, 2)
+        t = t.permute(1, 0, 2)
+
+        for i in range(self.num_layers):
+            v = self.v_layers[i](src=v, src_key_padding_mask=mask_v)
+            a = self.a_layers[i](src=a, src_key_padding_mask=mask_a)
+            t = self.t_layers[i](src=t, src_key_padding_mask=mask_t)
+
+            if self.center_modal == 'audio':
+                a[:self.num_bottle_token] = (v[:self.num_bottle_token] + a[:self.num_bottle_token]) / 2
+                v[:self.num_bottle_token] = a[:self.num_bottle_token]
+                a[self.num_bottle_token:self.cls_index] = (t[:self.num_bottle_token] + a[self.num_bottle_token:self.cls_index]) / 2
+                t[:self.num_bottle_token] = a[self.num_bottle_token:self.cls_index]
+            elif self.center_modal == 'visual':
+                v[:self.num_bottle_token] = (v[:self.num_bottle_token] + a[:self.num_bottle_token]) / 2
+                a[:self.num_bottle_token] = v[:self.num_bottle_token]
+                v[self.num_bottle_token:self.cls_index] = (t[:self.num_bottle_token] + v[self.num_bottle_token:self.cls_index]) / 2
+                t[:self.num_bottle_token] = v[self.num_bottle_token:self.cls_index]
+            else:
+                t[:self.num_bottle_token] = (t[:self.num_bottle_token] + v[:self.num_bottle_token]) / 2
+                v[:self.num_bottle_token] = t[:self.num_bottle_token]
+                t[self.num_bottle_token:self.cls_index] = (t[:self.num_bottle_token] + a[self.num_bottle_token:self.cls_index]) / 2
+                a[:self.num_bottle_token] = t[self.num_bottle_token:self.cls_index]
+
+        if self.center_modal == 'audio':
+            return t[self.num_bottle_token], v[self.num_bottle_token], a[self.cls_index]
+        elif self.center_modal == 'visual':
+            return t[self.num_bottle_token], v[self.cls_index], a[self.num_bottle_token]
+        else:
+            return t[self.cls_index], v[self.num_bottle_token], a[self.num_bottle_token]
+
+
 class MBT2(nn.Module):
     def __init__(self, dim, num_layers, num_heads, num_bottle_token, y_is_text=False):
         super(MBT2, self).__init__()
@@ -228,7 +318,10 @@ class E2EMBT(nn.Module):
         self.a_transformer = WrappedTransformerEncoder(dim=trans_dim, num_layers=nlayers, num_heads=nheads)
 
         if len(self.mod) == 3:
-            self.mbt = MBT(trans_dim, bot_nlayers, nheads, 1)
+            if args['mbt'] == "oembt":
+                self.mbt = OEMBT(trans_dim, bot_nlayers, nheads, 1, center_modal=args['center'])
+            else:
+                self.mbt = MBT(trans_dim, bot_nlayers, nheads, 1)
         else:
             self.mbt = MBT2(trans_dim, bot_nlayers, nheads, 1, y_is_text=('t' in self.mod))
 

@@ -19,6 +19,8 @@ def get_args():
 
     # Model
     parser.add_argument('-mo', '--model', help='Which model', type=str, required=False, default='mme2e')
+    parser.add_argument('--center', help='Center modal', type=str, required=False, default='text')
+    parser.add_argument('--mbt', help='Type of MBT', type=str, required=False, default='mbt')
     parser.add_argument('--custom', help='Custome name', type=str, required=False, default='default')
     parser.add_argument('--resume', help='Load model name', type=str, required=False, default='')
     parser.add_argument('--fusion', help='How to fuse modalities', type=str, required=False, default='mlp')
