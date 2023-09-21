@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from end2you.utils import Params
 
 
 class Criterion(nn.Module):

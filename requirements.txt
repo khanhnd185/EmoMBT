@@ -1,0 +1,9 @@
+facenet-pytorch
+scikit-learn
+sentencepiece
+soundfile
+tabulate
+timm==0.4.5
+torch
+torchvggish
+transformers
