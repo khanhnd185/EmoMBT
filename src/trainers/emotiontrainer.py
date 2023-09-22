@@ -46,7 +46,7 @@ class IemocapTrainer(TrainerBase):
     def train(self):
         for epoch in range(1, self.args['epochs'] + 1):
             print(f'=== Epoch {epoch} ===')
-            train_stats, train_thresholds = self.train_one_epoch()
+            train_stats, train_thresholds = self.train_one_epoch(epoch)
             valid_stats, valid_thresholds = self.eval_one_epoch()
             test_stats, _ = self.eval_one_epoch('test', valid_thresholds)
             # test_stats, _ = self.eval_one_epoch('test', [0.5,0.5,0.5,0.5,0.5,0.5])
@@ -139,7 +139,7 @@ class IemocapTrainer(TrainerBase):
                 print(f'{n:.4f},', end='')
         print()
 
-    def train_one_epoch(self):
+    def train_one_epoch(self, epoch):
         self.model.train()
         if self.args['model'] == 'mme2e' or self.args['model'] == 'mme2e_sparse':
             self.model.mtcnn.eval()
@@ -205,6 +205,9 @@ class IemocapTrainer(TrainerBase):
         total_Y = torch.cat(total_Y, dim=0)
 
         epoch_loss /= len(dataloader.dataset)
+        prefix = self.get_saving_file_name_prefix()
+        prefix = f'{prefix}_{epoch}_'
+        self.criterion.savefile(prefix)
         # print(f'train loss = {epoch_loss}')
         return self.eval_func(total_logits, total_Y)
 

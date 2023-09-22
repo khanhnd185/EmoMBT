@@ -29,6 +29,9 @@ class TrainerBase():
                 new_stats.append(f'{curr[i]:.4f} -')
         return new_stats
 
+    def get_saving_file_name_prefix(self):
+        return f'./savings/weights/{self.args["model"]}_{self.args["modalities"]}_{self.args["custom"]}_{self.args["dataset"]}_'
+
     def get_saving_file_name(self):
         best_test_stats = self.all_test_stats[self.best_epoch - 1]
 

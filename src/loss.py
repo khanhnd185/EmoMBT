@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from src.utils import save
 
 
 class Criterion(nn.Module):
@@ -12,6 +13,11 @@ class Criterion(nn.Module):
                 "text": torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight),
                 "visual": torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight),
             }
+            self.history = {
+                "audio": [],
+                "text": [],
+                "visual": []
+            }
         else:
             loss_dict = {
                 "audio": torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight),
@@ -19,8 +25,15 @@ class Criterion(nn.Module):
                 "visual": torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight),
                 "fusion": torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight),
             }
+            self.history = {
+                "audio": [],
+                "text": [],
+                "visual": [],
+                "fusion": []
+            }
         self.tasks = loss_dict.keys()
         self.losses = nn.ModuleDict(loss_dict)
+        self.weight = []
 
 
     def forward(self, preds, targets):
@@ -38,11 +51,20 @@ class Criterion(nn.Module):
             else:
                 target = targets[task]
 
-            task_losses.append(self.losses[task](pred, target))
+            l = self.losses[task](pred, target)
+            task_losses.append(l)
+            self.history[task].append(l.data.item())
 
         loss = torch.mean(torch.stack(task_losses))
 
         return loss
+
+    def savefile(self, prefix):
+        save(self.history, prefix+'history.pt')
+        save(self.weight, prefix+'weight.pt')
+        for task in self.tasks:
+            self.history[task] = []
+        self.weight = []
 
 
 class UncertaintyCriterion(Criterion):
@@ -73,7 +95,9 @@ class UncertaintyCriterion(Criterion):
             else:
                 target = targets[task]
 
-            task_losses.append(self.losses[task](pred, target))
+            l = self.losses[task](pred, target)
+            task_losses.append(l)
+            self.history[task].append(l.data.item())
 
         loss = torch.stack(task_losses)
 
@@ -82,6 +106,7 @@ class UncertaintyCriterion(Criterion):
         constraint = torch.abs(self.phi - torch.sum(torch.abs(self.log_vars)))
 
         loss = torch.sum(un_weights * loss) + regularisation + constraint
+        self.weight.append(un_weights.detach().cpu())
 
         return loss
 
@@ -122,7 +147,9 @@ class DynamicUncertaintyCriterion(Criterion):
             else:
                 target = targets[task_index]
 
-            task_losses.append(self.losses[task](pred, target))
+            l = self.losses[task](pred, target)
+            task_losses.append(l)
+            self.history[task].append(l.data.item())
 
             #task_loss = self.losses[task](pred, target)
             #if return_all:
@@ -141,6 +168,7 @@ class DynamicUncertaintyCriterion(Criterion):
         # update states
         self.loss_t_2 = self.loss_t_1
         self.loss_t_1 = loss_t.detach()
+        self.weight.append((dyn_weights + un_weights).detach().cpu())
 
         return loss
 
@@ -170,7 +198,9 @@ class DynamicWeightAverageCriterion(Criterion):
             else:
                 target = targets[task_index]
 
-            task_losses.append(self.losses[task](pred, target))
+            l = self.losses[task](pred, target)
+            task_losses.append(l)
+            self.history[task].append(l.data.item())
 
         loss_t = torch.stack(task_losses)
 
@@ -181,6 +211,7 @@ class DynamicWeightAverageCriterion(Criterion):
         # update states
         self.loss_t_2 = self.loss_t_1
         self.loss_t_1 = loss_t.detach()
+        self.weight.append(dyn_weights.detach().cpu())
 
         return loss
 
