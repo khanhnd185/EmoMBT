@@ -10,7 +10,7 @@ from src.models.e2e import MME2E
 from src.models.baselines.lf_rnn import LF_RNN
 from src.models.baselines.lf_transformer import LF_Transformer
 from src.trainers.emotiontrainer import IemocapTrainer
-from src.loss import criterion_factory
+from src.loss import criterion_factory, BCEWithLogitsLossWrapper
 
 def load_state_dict(model,path):
     state_dict = torch.load(path,map_location=torch.device('cpu'))
@@ -179,8 +179,7 @@ if __name__ == "__main__":
     elif args['loss'] == 'bce':
         pos_weight = train_dataset.getPosWeight()
         pos_weight = torch.tensor(pos_weight).to(device)
-        criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-        # criterion = torch.nn.BCEWithLogitsLoss()
+        criterion = BCEWithLogitsLossWrapper(pos_weight)
     else:
         pos_weight = train_dataset.getPosWeight()
         pos_weight = torch.tensor(pos_weight).to(device)

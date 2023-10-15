@@ -3,6 +3,22 @@ import torch.nn as nn
 from src.utils import save
 
 
+class BCEWithLogitsLossWrapper(nn.Module):
+    def __init__(self, pos_weight) -> None:
+        super().__init__()
+        self.history = []
+        self.criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+
+    def forward(self, preds, targets):
+        l = self.criterion(preds, targets)
+        self.history.append(l.data.item())
+        return l
+
+    def savefile(self, prefix):
+        save(self.history, prefix+'history.pt')
+        self.history = []
+
+
 class Criterion(nn.Module):
     def __init__(self, fusion, pos_weight) -> None:
         super().__init__()
