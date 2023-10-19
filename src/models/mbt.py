@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from src.utils import padTensor
-from transformers import AlbertModel
+from transformers import AlbertModel, BertModel
 from timm.models.layers import trunc_normal_
 from torch.nn.modules.transformer import _get_clones
 
@@ -13,9 +13,12 @@ from torch.nn import TransformerEncoderLayer
 from torchvggish import vggish
 
 class MME2E_T(nn.Module):
-    def __init__(self, feature_dim, size='base'):
+    def __init__(self, feature_dim, dataset='sims'):
         super(MME2E_T, self).__init__()
-        self.albert = AlbertModel.from_pretrained(f'albert-{size}-v2')
+        if dataset == 'sims':
+            self.albert = BertModel.from_pretrained('bert-base-chinese')
+        else:
+            self.albert = AlbertModel.from_pretrained(f'albert-base-v2')
         self.text_feature_affine = nn.Sequential(
             nn.Linear(768, 512),
             nn.ReLU(),
@@ -278,7 +281,7 @@ class E2EMBT(nn.Module):
         nheads = args['trans_nheads']
         trans_dim = args['trans_dim']
 
-        self.T = MME2E_T(feature_dim=trans_dim)
+        self.T = MME2E_T(feature_dim=trans_dim, dataset=args['dataset'])
         self.mtcnn = MTCNN(image_size=48, margin=2, post_process=False, device=device)
         self.normalize = transforms.Normalize(mean=[159, 111, 102], std=[37, 33, 32])
 
@@ -408,6 +411,8 @@ class E2EMBT(nn.Module):
             cls_v = self.v_out(cls_v)
             cls_a = self.a_out(cls_a)
             fusion = self.weighted_fusion(torch.stack([cls_t, cls_v, cls_a], dim=-1)).squeeze(-1)
+            if self.fusion == 'fusion':
+                return fusion
             return {
                 "audio": cls_a,
                 "text": cls_v,

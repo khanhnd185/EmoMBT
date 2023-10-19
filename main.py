@@ -4,12 +4,12 @@ import torch
 import numpy as np
 from torch.utils.data import DataLoader
 from src.cli import get_args
-from src.datasets import get_dataset_iemocap, collate_fn, HCFDataLoader, get_dataset_mosei, collate_fn_hcf_mosei
+from src.datasets import get_dataset_iemocap, collate_fn, collate_multimodal_fn, HCFDataLoader, get_dataset_mosei, collate_fn_hcf_mosei, get_dataset_sims
 from src.models.mbt import E2EMBT
 from src.models.e2e import MME2E
 from src.models.baselines.lf_rnn import LF_RNN
 from src.models.baselines.lf_transformer import LF_Transformer
-from src.trainers.emotiontrainer import IemocapTrainer
+from src.trainers.emotiontrainer import IemocapTrainer, SimsTrainer
 from src.loss import criterion_factory, BCEWithLogitsLossWrapper
 
 def load_state_dict(model,path):
@@ -74,6 +74,15 @@ if __name__ == "__main__":
         train_loader = DataLoader(train_dataset, batch_size=args['batch_size'], shuffle=True, num_workers=0, collate_fn=collate_fn_hcf_mosei if args['hand_crafted'] else collate_fn)
         valid_loader = DataLoader(valid_dataset, batch_size=args['batch_size'], shuffle=False, num_workers=0, collate_fn=collate_fn_hcf_mosei if args['hand_crafted'] else collate_fn)
         test_loader = DataLoader(test_dataset, batch_size=args['batch_size'], shuffle=False, num_workers=0, collate_fn=collate_fn_hcf_mosei if args['hand_crafted'] else collate_fn)
+    elif args['dataset'] == 'sims':
+        train_dataset = get_dataset_sims(data_folder=args['datapath'], phase='train', img_interval=args['img_interval'])
+        valid_dataset = get_dataset_sims(data_folder=args['datapath'], phase='valid', img_interval=args['img_interval'])
+        test_dataset = get_dataset_sims(data_folder=args['datapath'], phase='test', img_interval=args['img_interval'])
+
+        train_loader = DataLoader(train_dataset, batch_size=args['batch_size'], shuffle=True, num_workers=0, collate_fn=collate_multimodal_fn)
+        valid_loader = DataLoader(valid_dataset, batch_size=args['batch_size'], shuffle=False, num_workers=0, collate_fn=collate_multimodal_fn)
+        test_loader = DataLoader(test_dataset, batch_size=args['batch_size'], shuffle=False, num_workers=0, collate_fn=collate_multimodal_fn)
+
 
     print(f'# Train samples = {len(train_loader.dataset)}')
     print(f'# Valid samples = {len(valid_loader.dataset)}')
@@ -179,15 +188,20 @@ if __name__ == "__main__":
     elif args['loss'] == 'bce':
         pos_weight = train_dataset.getPosWeight()
         pos_weight = torch.tensor(pos_weight).to(device)
-        criterion = BCEWithLogitsLossWrapper(pos_weight)
+        criterion = BCEWithLogitsLossWrapper(args['infer'], pos_weight)
     else:
-        pos_weight = train_dataset.getPosWeight()
-        pos_weight = torch.tensor(pos_weight).to(device)
+        if args['dataset'] == "sims":
+            pos_weight = None
+        else:
+            pos_weight = train_dataset.getPosWeight()
+            pos_weight = torch.tensor(pos_weight).to(device)
         criterion = criterion_factory(args['fusion'], args['loss'], args['temperature'], pos_weight, device)
 
 
-    if args['dataset'] == 'iemocap' or 'mosei':
+    if args['dataset'] == 'iemocap' or args['dataset'] == 'mosei':
         trainer = IemocapTrainer(args, model, criterion, optimizer, scheduler, device, dataloaders)
+    else:
+        trainer = SimsTrainer(args, model, criterion, optimizer, scheduler, device, dataloaders)
 
     if args['test']:
         trainer.test()

@@ -37,7 +37,7 @@ class TrainerBase():
 
         name = f'{self.args["model"]}_{self.args["modalities"]}_{self.args["custom"]}_{self.args["dataset"]}_'
 
-        if self.args['loss'] in ['dwa', 'bce', 'mean', 'rruw', 'druw']:
+        if self.args['loss'] in ['dwa', 'bce', 'mean', 'rruw', 'druw'] and self.args['dataset'] != 'sims':
             name += f'Acc_{best_test_stats[0][-1]:.4f}_'
             name += f'F1_{best_test_stats[3][-1]:.4f}_'
             name += f'AUC_{best_test_stats[4][-1]:.4f}_'

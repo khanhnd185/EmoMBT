@@ -4,13 +4,14 @@ from src.utils import save
 
 
 class BCEWithLogitsLossWrapper(nn.Module):
-    def __init__(self, pos_weight) -> None:
+    def __init__(self, infer, pos_weight) -> None:
         super().__init__()
+        self.infer = infer
         self.history = []
         self.criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
     def forward(self, preds, targets):
-        l = self.criterion(preds, targets)
+        l = self.criterion(preds[self.infer], targets[self.infer])
         self.history.append(l.data.item())
         return l
 
@@ -41,6 +42,14 @@ class Criterion(nn.Module):
                 "visual": torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight),
                 "fusion": torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight),
             }
+            if pos_weight == None:
+                loss_dict = {
+                    "audio": nn.L1Loss(),
+                    "text": nn.L1Loss(),
+                    "visual": nn.L1Loss(),
+                    "fusion": nn.L1Loss(),
+                }
+
             self.history = {
                 "audio": [],
                 "text": [],
