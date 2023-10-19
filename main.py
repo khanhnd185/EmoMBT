@@ -74,10 +74,10 @@ if __name__ == "__main__":
         train_loader = DataLoader(train_dataset, batch_size=args['batch_size'], shuffle=True, num_workers=0, collate_fn=collate_fn_hcf_mosei if args['hand_crafted'] else collate_fn)
         valid_loader = DataLoader(valid_dataset, batch_size=args['batch_size'], shuffle=False, num_workers=0, collate_fn=collate_fn_hcf_mosei if args['hand_crafted'] else collate_fn)
         test_loader = DataLoader(test_dataset, batch_size=args['batch_size'], shuffle=False, num_workers=0, collate_fn=collate_fn_hcf_mosei if args['hand_crafted'] else collate_fn)
-    elif args['dataset'] == 'sims':
-        train_dataset = get_dataset_sims(data_folder=args['datapath'], phase='train', img_interval=args['img_interval'])
-        valid_dataset = get_dataset_sims(data_folder=args['datapath'], phase='valid', img_interval=args['img_interval'])
-        test_dataset = get_dataset_sims(data_folder=args['datapath'], phase='test', img_interval=args['img_interval'])
+    elif args['dataset'] in ['simsv1', 'simv2'] :
+        train_dataset = get_dataset_sims(data_folder=args['datapath'], phase='train', img_interval=args['img_interval'], version=args['dataset'])
+        valid_dataset = get_dataset_sims(data_folder=args['datapath'], phase='valid', img_interval=args['img_interval'], version=args['dataset'])
+        test_dataset = get_dataset_sims(data_folder=args['datapath'], phase='test', img_interval=args['img_interval'], version=args['dataset'])
 
         train_loader = DataLoader(train_dataset, batch_size=args['batch_size'], shuffle=True, num_workers=0, collate_fn=collate_multimodal_fn)
         valid_loader = DataLoader(valid_dataset, batch_size=args['batch_size'], shuffle=False, num_workers=0, collate_fn=collate_multimodal_fn)
@@ -190,7 +190,7 @@ if __name__ == "__main__":
         pos_weight = torch.tensor(pos_weight).to(device)
         criterion = BCEWithLogitsLossWrapper(args['infer'], pos_weight)
     else:
-        if args['dataset'] == "sims":
+        if args['dataset'] in ['simsv1', 'simv2']:
             pos_weight = None
         else:
             pos_weight = train_dataset.getPosWeight()

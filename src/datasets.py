@@ -81,9 +81,10 @@ def get_dataset_mosei(data_folder: str, phase: str, img_interval: int, hand_craf
         img_interval=img_interval
     )
 
-def get_dataset_sims(data_folder: str, phase: str, img_interval: int):
+def get_dataset_sims(data_folder: str, phase: str, img_interval: int, version: str):
     main_folder = os.path.join(data_folder, 'CHSIMS')
-    with open(os.path.join(main_folder, 'meta.csv'), encoding="utf-8") as f:
+    label_file = version + '.csv'
+    with open(os.path.join(main_folder, label_file), encoding="utf-8") as f:
         lines = f.read().splitlines()
 
     ids = []

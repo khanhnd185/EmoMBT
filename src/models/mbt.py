@@ -13,9 +13,9 @@ from torch.nn import TransformerEncoderLayer
 from torchvggish import vggish
 
 class MME2E_T(nn.Module):
-    def __init__(self, feature_dim, dataset='sims'):
+    def __init__(self, feature_dim, dataset='simsv1'):
         super(MME2E_T, self).__init__()
-        if dataset == 'sims':
+        if dataset in ['simsv1', 'simsv2']:
             self.albert = BertModel.from_pretrained('bert-base-chinese')
         else:
             self.albert = AlbertModel.from_pretrained(f'albert-base-v2')
