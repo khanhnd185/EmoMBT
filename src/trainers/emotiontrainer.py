@@ -3,7 +3,7 @@ import torch
 from torch.nn.utils import clip_grad_norm_
 from tqdm import tqdm
 from tabulate import tabulate
-from src.evaluate import eval_iemocap, eval_iemocap_ce, eval_sims_regression
+from src.evaluate import eval_iemocap, eval_sims_regression
 from src.trainers.basetrainer import TrainerBase
 from transformers import AlbertTokenizer, BertTokenizer
 
@@ -13,10 +13,7 @@ class IemocapTrainer(TrainerBase):
         self.args = args
         self.text_max_len = args['text_max_len']
         self.tokenizer = AlbertTokenizer.from_pretrained(f'albert-base-v2')
-        if self.args['loss'] in ['dwa', 'bce', 'mean', 'rruw', 'druw']:
-            self.eval_func = eval_iemocap
-        else:
-            self.eval_func = eval_iemocap_ce
+        self.eval_func = eval_iemocap
         self.all_train_stats = []
         self.all_valid_stats = []
         self.all_test_stats = []
@@ -49,17 +46,9 @@ class IemocapTrainer(TrainerBase):
             train_stats, train_thresholds = self.train_one_epoch(epoch)
             valid_stats, valid_thresholds = self.eval_one_epoch()
             test_stats, _ = self.eval_one_epoch('test', valid_thresholds)
-            # test_stats, _ = self.eval_one_epoch('test', [0.5,0.5,0.5,0.5,0.5,0.5])
 
             print('Train thresholds: ', train_thresholds)
             print('Valid thresholds: ', valid_thresholds)
-
-            # if self.args['model'] == 'mme2e_sparse':
-            #     sparse_percentages = self.model.get_sparse_percentages()
-            #     if 'v' in self.args['modalities']:
-            #         print('V sparse percent', sparse_percentages[0])
-            #     if 'a' in self.args['modalities']:
-            #         print('A sparse percent', sparse_percentages[1])
 
             self.all_train_stats.append(train_stats)
             self.all_valid_stats.append(valid_stats)
@@ -141,7 +130,7 @@ class IemocapTrainer(TrainerBase):
 
     def train_one_epoch(self, epoch):
         self.model.train()
-        if self.args['model'] == 'mme2e' or self.args['model'] == 'mme2e_sparse':
+        if self.args['model'] == 'mme2e':
             self.model.mtcnn.eval()
 
         dataloader = self.dataloaders['train']
@@ -151,7 +140,6 @@ class IemocapTrainer(TrainerBase):
         total_Y = []
         pbar = tqdm(dataloader, desc='Train')
 
-        # with torch.autograd.set_detect_anomaly(True):
         for uttranceId, imgs, imgLens, specgrams, specgramLens, text, Y in pbar:
             if 'lf_' not in self.args['model']:
                 text = self.tokenizer(text, return_tensors='pt', max_length=self.text_max_len, padding='max_length', truncation=True)
@@ -161,7 +149,6 @@ class IemocapTrainer(TrainerBase):
             if self.args['loss'] == 'ce':
                 Y = Y.argmax(-1)
 
-            # imgs = imgs.to(device=self.device)
             specgrams = specgrams.to(device=self.device)
             text = text.to(device=self.device)
             Y = Y.to(device=self.device)
@@ -208,7 +195,6 @@ class IemocapTrainer(TrainerBase):
         prefix = self.get_saving_file_name_prefix()
         prefix = f'{prefix}_{epoch}_'
         self.criterion.savefile(prefix)
-        # print(f'train loss = {epoch_loss}')
         return self.eval_func(total_logits, total_Y)
 
     def eval_one_epoch(self, phase='valid', thresholds=None):
@@ -229,7 +215,6 @@ class IemocapTrainer(TrainerBase):
             if self.args['loss'] == 'ce':
                 Y = Y.argmax(-1)
 
-            # imgs = imgs.to(device=self.device)
             specgrams = specgrams.to(device=self.device)
             text = text.to(device=self.device)
             Y = Y.to(device=self.device)
@@ -270,10 +255,6 @@ class IemocapTrainer(TrainerBase):
 
         epoch_loss /= len(dataloader.dataset)
 
-        # if phase == 'valid' and self.scheduler is not None:
-        #     self.scheduler.step(epoch_loss)
-
-        # print(f'{phase} loss = {epoch_loss}')
         return self.eval_func(total_logits, total_Y, thresholds)
 
 class SimsTrainer(TrainerBase):
@@ -355,7 +336,6 @@ class SimsTrainer(TrainerBase):
         total_Y = []
         pbar = tqdm(dataloader, desc='Train')
 
-        # with torch.autograd.set_detect_anomaly(True):
         for uttranceId, imgs, imgLens, specgrams, specgramLens, text, Y in pbar:
             text = self.tokenizer(text, return_tensors='pt', max_length=self.text_max_len, padding='max_length', truncation=True)
             imgs = imgs.to(device=self.device)

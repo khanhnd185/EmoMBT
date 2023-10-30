@@ -192,19 +192,6 @@ def eval_iemocap(preds, truths, best_thresholds=None):
 
     return (accs, recalls, precisions, f1s, aucs), best_thresholds
 
-def eval_iemocap_ce(preds, truths):
-    # emos = ["Happy", "Sad", "Angry", "Neutral"]
-    '''
-    preds: (num_of_data, 4)
-    truths: (num_of_data,)
-    '''
-    preds = preds.argmax(-1)
-    acc = accuracy_score(truths, preds)
-    f1 = f1_score(truths, preds, average='macro')
-    r = recall_score(truths, preds, average='macro')
-    p = precision_score(truths, preds, average='macro')
-    return acc, r, p, f1
-
 def __multiclass_acc(y_pred, y_true):
     """
     Compute the multiclass accuracy w.r.t. groundtruth
@@ -230,29 +217,9 @@ def eval_sims_regression(y_pred, y_true):
     for i in range(2):
         test_truth_a2[np.logical_and(test_truth > ms_2[i], test_truth <= ms_2[i+1])] = i
 
-    # three classes{[-1.0, -0.1], (-0.1, 0.1], (0.1, 1.0]}
-    #ms_3 = [-1.01, -0.1, 0.1, 1.01]
-    #test_preds_a3 = test_preds.copy()
-    #test_truth_a3 = test_truth.copy()
-    #for i in range(3):
-    #    test_preds_a3[np.logical_and(test_preds > ms_3[i], test_preds <= ms_3[i+1])] = i
-    #for i in range(3):
-    #    test_truth_a3[np.logical_and(test_truth > ms_3[i], test_truth <= ms_3[i+1])] = i
-
-    # five classes{[-1.0, -0.7], (-0.7, -0.1], (-0.1, 0.1], (0.1, 0.7], (0.7, 1.0]}
-    #ms_5 = [-1.01, -0.7, -0.1, 0.1, 0.7, 1.01]
-    #test_preds_a5 = test_preds.copy()
-    #test_truth_a5 = test_truth.copy()
-    #for i in range(5):
-    #    test_preds_a5[np.logical_and(test_preds > ms_5[i], test_preds <= ms_5[i+1])] = i
-    #for i in range(5):
-    #    test_truth_a5[np.logical_and(test_truth > ms_5[i], test_truth <= ms_5[i+1])] = i
-
     mae = np.mean(np.absolute(test_preds - test_truth)).astype(np.float64)   # Average L1 distance between preds and truths
     corr = np.corrcoef(test_preds, test_truth)[0][1]
     mult_a2 = __multiclass_acc(test_preds_a2, test_truth_a2)
-    #mult_a3 = __multiclass_acc(test_preds_a3, test_truth_a3)
-    #mult_a5 = __multiclass_acc(test_preds_a5, test_truth_a5)
     f_score = f1_score(test_truth_a2, test_preds_a2, average='weighted')
 
     return mult_a2, mae, corr, f_score

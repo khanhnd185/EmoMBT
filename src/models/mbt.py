@@ -7,7 +7,6 @@ from torch.nn.modules.transformer import _get_clones
 
 from torchvision import transforms
 from facenet_pytorch import MTCNN
-from src.models.vgg_block import VggBasicBlock
 
 from torch.nn import TransformerEncoderLayer
 from torchvggish import vggish
@@ -285,21 +284,6 @@ class E2EMBT(nn.Module):
         self.mtcnn = MTCNN(image_size=48, margin=2, post_process=False, device=device)
         self.normalize = transforms.Normalize(mean=[159, 111, 102], std=[37, 33, 32])
 
-
-        self.V = nn.Sequential(
-            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5, padding=2),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            VggBasicBlock(in_planes=64, out_planes=64),
-            VggBasicBlock(in_planes=64, out_planes=64),
-            VggBasicBlock(in_planes=64, out_planes=128),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            VggBasicBlock(in_planes=128, out_planes=256),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            VggBasicBlock(in_planes=256, out_planes=512),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-        )
         self.V = torch.load('enet_b2_8.pt',map_location=device)
         self.V.classifier = torch.nn.Identity()
 

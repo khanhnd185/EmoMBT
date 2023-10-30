@@ -48,10 +48,6 @@ class TrainerBase():
             name += f'{best_test_stats[3]:.4f}_'
 
         name += f'imginvl{self.args["img_interval"]}_'
-
-        if self.args['model'] == 'mme2e_sparse':
-            name += f'st_{self.args["sparse_threshold"]}_'
-
         name += f'seed{self.args["seed"]}'
         name += '.pt'
 
@@ -68,18 +64,6 @@ class TrainerBase():
         }
 
         save(stats, os.path.join(self.saving_path, 'stats', self.get_saving_file_name()))
-
-        # csv_path = os.path.join(self.saving_path, 'csv', self.get_saving_file_name()).replace('.pt', '.csv')
-        # dirname = os.path.dirname(csv_path)
-        # if not os.path.exists(dirname):
-        #     os.makedirs(dirname)
-        # with open(csv_path, 'w') as f:
-        #     for stat in self.all_test_stats[self.best_epoch - 1]:
-        #         for n in stat:
-        #             f.write(f'{n:.4f},')
-        #     f.write('\n')
-        #     f.write(str(self.args))
-        #     f.write('\n')
 
     def save_model(self):
         torch.save(self.best_model, os.path.join(self.saving_path, 'models', self.get_saving_file_name()))

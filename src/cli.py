@@ -1,7 +1,7 @@
 import argparse
 
 def get_args():
-    parser = argparse.ArgumentParser(description='Multimodal End-to-End Sparse Model for Emotion Recognition')
+    parser = argparse.ArgumentParser(description='Multimodal Learning using Multitask learning for Emotion Recognition')
 
     # Training hyper-parameters
     parser.add_argument('-bs', '--batch-size', help='Batch size', type=int, required=True)
@@ -26,19 +26,15 @@ def get_args():
     parser.add_argument('--fusion', help='How to fuse modalities', type=str, required=False, default='mlp')
     parser.add_argument('--infer', help='How to fuse modalities', type=str, required=False, default='visual')
     parser.add_argument('--feature-dim', help='Dimension of features outputed by each modality model', type=int, required=False, default=256)
-    parser.add_argument('-st', '--sparse-threshold', help='Threshold of sparse CNN layers', type=float, required=False, default=0.9)
-    parser.add_argument('-hfcs', '--hfc-sizes', help='Hand crafted feature sizes', nargs='+', type=int, required=False, default=[300, 144, 35])
     parser.add_argument('--trans-dim', help='Dimension of the transformer after CNN', type=int, required=False, default=512)
     parser.add_argument('--trans-nlayers', help='Number of layers of the transformer after CNN', type=int, required=False, default=2)
     parser.add_argument('--bot-nlayers', help='Number of bottleneck layers of the MBT', type=int, required=False, default=2)
     parser.add_argument('--trans-nheads', help='Number of heads of the transformer after CNN', type=int, required=False, default=8)
-    parser.add_argument('-aft', '--audio-feature-type', help='Hand crafted audio feature types', type=int, default=0)
     parser.add_argument('--temperature', help='Temperature', type=float, default=10.0)
 
     # Data
     parser.add_argument('--num-emotions', help='Number of emotions in data', type=int, required=False, default=4)
     parser.add_argument('--img-interval', help='Interval to sample image frames', type=int, required=False, default=500)
-    parser.add_argument('--hand-crafted', help='Use hand crafted features', action='store_true')
     parser.add_argument('--text-max-len', help='Max length of text after tokenization', type=int, required=False, default=300)
 
     # Path
