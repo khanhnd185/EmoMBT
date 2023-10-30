@@ -1,188 +1,72 @@
-# Multimodal End-to-End Sparse Model for Emotion Recognition
+# Multimodal Learning inspired by Multitask learning in Video Emotion Recognition
 
-[![](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/) [![CC BY 4.0][cc-by-shield]][cc-by]
+## Introduction
 
+This is my on-going project. I use the idea of Multitask learning for Multimodal learning. In our proposed methods, we utilize the idea of multitask learning for multimodal learning. In multitask learning, a prediction of a task can improve the accuracy of the prediction of another task. For multimodal learning, we aim to use a prediction generated from a specific modal to enhance the prediction obtained from another modal or a prediction of the late-fusion production.
 
-<img align="right" src="img/HKUST.jpg" width="15%"/>
+![frameworks](./img/frameworks.jpg)
 
-[cc-by]: http://creativecommons.org/licenses/by/4.0/
-[cc-by-shield]: https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg
-
-[[Paper]](https://www.aclweb.org/anthology/2021.naacl-main.417/) accepted at the NAACL 2021:
-
-**Multimodal End-to-End Sparse Model for Emotion Recognition**, by **[Wenliang Dai *](https://wenliangdai.github.io/)**, Samuel Cahyawijaya *, [Zihan Liu](https://zliucr.github.io/), [Pascale Fung](https://pascale.home.ece.ust.hk/).
-
-## Paper Abstract
-
-> Existing works on multimodal affective computing tasks, such as emotion recognition, generally adopt a two-phase pipeline, first extracting feature representations for each single modality with hand-crafted algorithms and then performing end-to-end learning with the extracted features. However, the extracted features are fixed and cannot be further fine-tuned on different target tasks, and manually finding feature extraction algorithms does not generalize or scale well to different tasks, which can lead to sub-optimal performance. In this paper, we develop a fully end-to-end model that connects the two phases and optimizes them jointly. In addition, we restructure the current datasets to enable the fully end-to-end training. Furthermore, to reduce the computational overhead brought by the end-to-end model, we introduce a sparse cross-modal attention mechanism for the feature extraction. Experimental results show that our fully end-to-end model significantly surpasses the current state-of-the-art models based on the two-phase pipeline. Moreover, by adding the sparse cross-modal attention, our model can maintain performance with around half the computation in the feature extraction part.
-
-If you work is inspired by our paper or code, please cite it, thanks!
-
-<pre>
-@inproceedings{dai-etal-2021-multimodal,
-    title = "Multimodal End-to-End Sparse Model for Emotion Recognition",
-    author = "Dai, Wenliang  and
-      Cahyawijaya, Samuel  and
-      Liu, Zihan  and
-      Fung, Pascale",
-    booktitle = "Proceedings of the 2021 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies",
-    month = jun,
-    year = "2021",
-    address = "Online",
-    publisher = "Association for Computational Linguistics",
-    url = "https://www.aclweb.org/anthology/2021.naacl-main.417",
-    doi = "10.18653/v1/2021.naacl-main.417",
-    pages = "5305--5316",
-    abstract = "Existing works in multimodal affective computing tasks, such as emotion recognition and personality recognition, generally adopt a two-phase pipeline by first extracting feature representations for each single modality with hand crafted algorithms, and then performing end-to-end learning with extracted features. However, the extracted features are fixed and cannot be further fine-tuned on different target tasks, and manually finding feature extracting algorithms does not generalize or scale well to different tasks, which can lead to sub-optimal performance. In this paper, we develop a fully end-to-end model that connects the two phases and optimizes them jointly. In addition, we restructure the current datasets to enable the fully end-to-end training. Furthermore, to reduce the computational overhead brought by the end-to-end model, we introduce a sparse cross-modal attention mechanism for the feature extraction. Experimental results show that our fully end-to-end model significantly surpasses the current state-of-the-art models based on the two-phase pipeline. Moreover, by adding the sparse cross-modal attention, our model can maintain the performance with around half less computation in the feature extraction part of the model.",
-}
-</pre>
-
-You can also check our blog [here](https://nlp.caire.hkust.edu.hk/blog/2021/sparse-multimodal/) 😊.
 
 ## Dataset
 
-As mentioned in our paper, one of the contribution is that we reorganize two datasets (IEMOCAP and CMU-MOSEI) to enable training from the raw data. To the best of our knowledge, prior to our work, papers using these two datasets are based on pre-extracted features, and we did not find a way to map those features back with raw data. Therefore, we did a heavy reorganization of these datasets (refer to Section 3 of the paper for more details).
+We conducted the experiments on the reorganized IEMOCAP and CMU-MOSEI provided by [Dai](https://aclanthology.org/2021.naacl-main.417/), and the [CH-SIMS dataset](https://aclanthology.org/2020.acl-main.343/). The preprocessed IEMOCAP and CMU-MOSEI can be downloaded [here](https://github.com/wenliangdai/Multimodal-End2end-Sparse). The CH-SIMS and its baseline can be found [here](https://github.com/thuiar/MMSA). For all datasets, we used the MTCNN to extract facial images and resized to 260x260.
 
-The raw data can be downloaded from [CMU-MOSEI](http://immortal.multicomp.cs.cmu.edu/raw_datasets/CMU_MOSEI.zip) (~120GB) and [IEMOCAP](https://hkustconnect-my.sharepoint.com/:u:/g/personal/wdaiai_connect_ust_hk/EdZoawxqQ01Ej38NpflFZPEB4zYR9RxIPcaAPcFU77qFgQ?e=7efIl0) (~16.5GB). However, for the IEMOCAP, you need to [request for a permission](https://sail.usc.edu/iemocap/iemocap_release.htm) from the original author, then we can give the passcode to download.
+## Environment
 
-We provide two Python scripts as examples of processing the raw data in the `./preprocessing` folder. Alternatively, you can also download our processed raw data for training directly, as shown in the section below.
+* timm 0.4.5
 
-## Preparation
+## Results
 
-### Dataset
+Test results on IEMOCAP
 
-To run our code directly, you can download the processed data from [here](https://hkustconnect-my.sharepoint.com/:u:/g/personal/wdaiai_connect_ust_hk/EbEzVnCduqVNuT_LvuRApVQBagraPx7nGqIEHgdnGPjN7g?e=zeMtct) (88.6G). Unzip it and the tree structure of the data direcotry looks like this:
+| Model | Ang_Ac | Ang_F1 | Exc_Ac | Exc_F1 | Fru_Ac | Fru_F1 | Hap_Ac | Hap_F1 | Neu_Ac | Neu_F1 | Sad_Ac | Sad_F1 | Avg_Ac | Avg_F1 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Audio | 82.1 | 46.2 | 55.0 | 30.3 | 45.4 | 42.4 | 12.8 | 17.2 | 48.6 | 41.4 | 77.9 | 48.8 | 53.6 | 37.7 |
+| Visual | 80.9 | 53.8 | 84.3 | 56.3 | 68.3 | 53.9 | 90.1 | 43.7 | 75.1 | 55.3 | 86.6 | 55.8 | 80.9 | 53.1 |
+| Text | 86.0 | 57.9 | 86.8 | 56.8 | 70.1 | 54.7 | 90.1 | 40.5 | 73.5 | 49.0 | 87.0 | 58.0 | 82.2 | 52.8 |
+| LF-LSTM | 71.2 | 49.4 | 79.3 | 57.2 | 68.2 | 51.5 | 67.2 | 37.6 | 66.5 | 47.0 | 78.2 | 54.0 | 71.8 | 49.5 |
+| LF-Trans | 81.9 | 50.7 | 85.3 | 57.3 | 60.5 | 49.3 | 85.2 | 37.6 | 72.4 | 49.7 | 87.4 | 57.4 | 78.8 | 50.3 |
+| EmoEmbs | 65.9 | 48.9 | 73.5 | 58.3 | 68.5 | 52.0 | 69.6 | 38.3 | 73.6 | 48.7 | 80.8 | 53.0 | 72.0 | 49.8 |
+| MulT | 77.9 | 60.7 | 76.9 | 58.0 | 72.4 | 57.0 | 80.0 | 46.8 | 74.9 | 53.7 | 83.5 | 65.4 | 77.6 | 56.9 |
+| BIMHA | 77.2 | 57.6 | 78.3 | 56.1 | 73.9 | 54.2 | 83.4 | 43.2 | 76.4 | 50.9 | 83.8 | 63.7 | 78.8 | 54.3 |
+| CMHA | 88.6 | 61.1 | 87.9 | 60.5 | 75.1 | 56.3 | 89.0 | 45.8 | 76.5 | 51.2 | 88.3 | 61.6 | 84.3 | 56.1 |
+| MESE | 88.2 | 62.8 | 88.3 | 61.2 | 74.9 | 58.4 | 89.5 | 47.3 | 77.0 | 52.0 | 88.6 | 62.2 | 84.4 | 57.4 |
+| FE2E | 88.7 | 63.9 | 89.1 | 61.9 | 71.2 | 57.8 | 90.0 | 44.8 | 79.1 | 58.4 | 89.1 | 65.7 | 85.7 | 57.1 |
+| Le et al | **90.1** | 66.8 | 88.5 | 66.8 | 77.7 | 57.0 | **90.5** | 48.5 | 78.1 | 56.6 | 90.7 | 69.6 | 85.9 | 60.9 |
+| Ours | 89.5 | **67.8** | **90.8** | **70.7** | **78.9** | **59.9** | 89.9 | **55.5** | **79.1** | **60.6** | **91.4** | **72.9** | **86.6** | **64.6** |
 
-```
-./data
-- IEMOCAP_HCF_FEATURES
-- IEMOCAP_RAW_PROCESSED
-- IEMOCAP_SPLIT
-- MOSEI_RAW_PROCESSED
-- MOSEI_HCF_FEATURES
-- MOSEI_SPLIT
-```
+Test results on MOSEI
 
-### Environment
+| Model | Ang_Wa | Ang_F1 | Dis_Wa | Dis_F1 | Fea_Wa | Fea_F1 | Hap_Wa | Hap_F1 | Sad_Wa | Sad_F1 | Sur_Wa | Sur_F1 | Sur_Wa | Sur_F1 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Audio | 53.9  | 40.5  | 61.0  | 35.7  | 59.0  | 19.6  | 50.0  | 69.3  | 61.2  | 45.8  | 58.4  | 21.7  | 57.2  | 38.8 |
+| Visual | 58.9  | 38.2  | 63.2  | 37.6  | 59.1  | 21.8  | 55.7  | 70.3  | 56.2  | 42.8  | 53.0  | 17.9  | 57.7  | 38.1 |
+| Text | 65.9  | 48.4  | 74.0  | 56.0  | 62.8  | 27.0  | 62.3  | 72.0  | 60.2  | 45.3  | 60.9  | 26.0  | 64.3  | 45.8 |
+| LF-LSTM | 64.5  | 47.1  | 70.5  | 49.8  | 61.7  | 22.2  | 61.3  | 73.2  | 63.4  | 47.2  | 57.1  | 20.6  | 63.1  | 43.3 |
+| LF-Trans | 65.3  | 47.7  | 74.4  | 51.9  | 62.1  | 24.0  | 60.6  | 72.9  | 60.1  | 45.5  | 62.1  | 24.2  | 64.1  | 44.4 |
+| EmoEmbs | 66.8  | 49.4  | 69.6  | 48.7  | 63.8  | 23.4  | 61.2  | 71.9  | 60.5  | 47.5  | 63.3  | 24.0  | 64.2  | 44.2 |
+| MulT] | 64.9  | 47.5  | 71.6  | 49.3  | 62.9  | 25.3  | 67.2  | 75.4  | 64.0  | 48.3  | 61.4  | 25.6  | 65.4  | 45.2 |
+| BIMHA | 65.3  | 47.4  | 70.5  | 48.9  | 61.8  | 24.7  | 65.8  | 72.1  | 62.6  | 47.9  | 62.5  | 24.9  | 64.8  | 44.3 |
+| CMHA | 65.9  | 49.1  | 73.6  | 53.2  | 63.4  | 27.3  | 65.2  | 72.1  | 64.2  | 46.7  | 64.5  | 26.6  | 66.1  | 45.8 |
+| MESE | 66.8  | 49.3  | 75.6  | 56.4  | 65.8  | 28.9  | 64.1  | 72.3  | 63.0  | 46.6  | 65.7  | 27.2  | 66.8  | 46.8 |
+| FE2E | 66.9  | 49.5  | 75.4  | 57.2  | 63.8  | 27.1  | 61.9  | 72.3  | **65.6**  | 49.3  | 61.5  | 26.9  | 65.8  | 47.0 |
+| Le et al | 67.5  | 50.2  | 76.3  | 57.0  | 69.0  | 29.0  | 63.0  | 72.6  | 65.5  | 49.2  | 65.7  | 27.6  | 67.8  | 47.6 |
+| Ours | **71.4**  | **52.6**  | **81.4**  | **57.4**  | **80.5**  | **30.2**  | **68.5**  | **75.4**  | 63.9  | **51.6**  | **80.3**  | **30.3**  | **74.3**  | **49.6** |
 
-* Python 3.7
-* PyTorch 1.6.0
-* torchaudio 0.6.0
-* torchvision 0.7.0
-* transformers 3.4.0 ([huggingface](https://huggingface.co/transformers/))
-* [sparseconvnet](https://github.com/facebookresearch/SparseConvNet)
-* [facenet-pytorch](https://github.com/timesler/facenet-pytorch) 2.3.0
+Test results on CH-SIMS
 
-## Command examples for running
+| Model | Annotation | Acc2 | F1 | MAE | Corr |
+| --- | --- | --- | --- | --- | --- |
+| EF-LSTM [30] | M | 69.37  | 81.91  | 59.34  | -4.39 |
+| MFN [31] | M | 77.86  | 78.22  | 45.19  | 55.18 |
+| MulT [3] | M | 77.94  | 79.10  | 48.45  | 55.94 |
+| LF-DNN [28] | M | 79.87  | 80.20  | 42.01  | 61.23 |
+| MLF-DNN [27] | M, A, T, V | 82.28  | 82.52  | 40.64  | 67.47 |
+| LMF [29] | M | 79.34  | 79.96  | 43.99  | 60.00 |
+| MLMF [27] | M, A, T, V | 82.32  | 82.66  | 42.03  | 63.13 |
+| TFN [28] | M | 80.66  | 81.62  | 42.52  | 61.18 |
+| MTFN [27] | M, A, T, V | 82.45  | 82.56  | 40.66  | 66.98 |
+| Self-MM [26] | M, A, T, V | 80.74 | 80.78 | 41.90 | 61.60|
+| Human-MM [26] | M, A, T, V | 81.32 | 81.73 | 40.80 | 64.70|
+| Ours | M, A, T, V | **83.37** | **83.15** | **37.61** | **68.04** |
 
-### Train the MME2E
-
-```console
-python main.py -lr=5e-5 -ep=40 -mod=tav -bs=8 --img-interval=500 --early-stop=6 --loss=bce --cuda=3 --model=mme2e --num-emotions=6 --trans-dim=64 --trans-nlayers=4 --trans-nheads=4 --text-lr-factor=10 --text-model-size=base --text-max-len=100
-```
-
-### Train the sparse MME2E
-
-```console
-python main.py -lr=5e-5 -ep=40 -mod=tav -bs=2 --img-interval=500 --early-stop=6 --loss=bce --cuda=3 --model=mme2e_sparse --num-emotions=6 --trans-dim=64 --trans-nlayers=4 --trans-nheads=4 --text-lr-factor=10 -st=0.8 --text-model-size=base --text-max-len=100
-```
-
-### Baselines
-
-#### LF_RNN
-
-```console
-python main.py -lr=5e-4 -ep=60 -mod=tav -bs=32 --early-stop=8 --loss=bce --cuda=1 --model=lf_rnn --num-emotions=6 --hand-crafted --clip=2
-```
-
-#### LF_TRANSFORMER
-
-```console
-python main.py -lr=5e-4 -ep=60 -mod=tav -bs=32 --early-stop=8 --loss=bce --cuda=0 --model=lf_transformer --num-emotions=6 --hand-crafted --clip=2
-```
-
-## CLI
-
-```
-usage: main.py [-h] -bs BATCH_SIZE -lr LEARNING_RATE [-wd WEIGHT_DECAY] -ep
-               EPOCHS [-es EARLY_STOP] [-cu CUDA] [-cl CLIP] [-sc] [-se SEED]
-               [--loss LOSS] [--optim OPTIM] [--text-lr-factor TEXT_LR_FACTOR]
-               [-mo MODEL] [--text-model-size TEXT_MODEL_SIZE]
-               [--fusion FUSION] [--feature-dim FEATURE_DIM]
-               [-st SPARSE_THRESHOLD] [-hfcs HFC_SIZES [HFC_SIZES ...]]
-               [--trans-dim TRANS_DIM] [--trans-nlayers TRANS_NLAYERS]
-               [--trans-nheads TRANS_NHEADS] [-aft AUDIO_FEATURE_TYPE]
-               [--num-emotions NUM_EMOTIONS] [--img-interval IMG_INTERVAL]
-               [--hand-crafted] [--text-max-len TEXT_MAX_LEN]
-               [--datapath DATAPATH] [--dataset DATASET] [-mod MODALITIES]
-               [--valid] [--test] [--ckpt CKPT] [--ckpt-mod CKPT_MOD]
-               [-dr DROPOUT] [-nl NUM_LAYERS] [-hs HIDDEN_SIZE] [-bi] [--gru]
-
-Multimodal End-to-End Sparse Model for Emotion Recognition
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -bs BATCH_SIZE, --batch-size BATCH_SIZE
-                        Batch size
-  -lr LEARNING_RATE, --learning-rate LEARNING_RATE
-                        Learning rate
-  -wd WEIGHT_DECAY, --weight-decay WEIGHT_DECAY
-                        Weight decay
-  -ep EPOCHS, --epochs EPOCHS
-                        Number of epochs
-  -es EARLY_STOP, --early-stop EARLY_STOP
-                        Early stop
-  -cu CUDA, --cuda CUDA
-                        Cude device number
-  -cl CLIP, --clip CLIP
-                        Use clip to gradients
-  -sc, --scheduler      Use scheduler to optimizer
-  -se SEED, --seed SEED
-                        Random seed
-  --loss LOSS           loss function
-  --optim OPTIM         optimizer function: adam/sgd
-  --text-lr-factor TEXT_LR_FACTOR
-                        Factor the learning rate of text model
-  -mo MODEL, --model MODEL
-                        Which model
-  --text-model-size TEXT_MODEL_SIZE
-                        Size of the pre-trained text model
-  --fusion FUSION       How to fuse modalities
-  --feature-dim FEATURE_DIM
-                        Dimension of features outputed by each modality model
-  -st SPARSE_THRESHOLD, --sparse-threshold SPARSE_THRESHOLD
-                        Threshold of sparse CNN layers
-  -hfcs HFC_SIZES [HFC_SIZES ...], --hfc-sizes HFC_SIZES [HFC_SIZES ...]
-                        Hand crafted feature sizes
-  --trans-dim TRANS_DIM
-                        Dimension of the transformer after CNN
-  --trans-nlayers TRANS_NLAYERS
-                        Number of layers of the transformer after CNN
-  --trans-nheads TRANS_NHEADS
-                        Number of heads of the transformer after CNN
-  -aft AUDIO_FEATURE_TYPE, --audio-feature-type AUDIO_FEATURE_TYPE
-                        Hand crafted audio feature types
-  --num-emotions NUM_EMOTIONS
-                        Number of emotions in data
-  --img-interval IMG_INTERVAL
-                        Interval to sample image frames
-  --hand-crafted        Use hand crafted features
-  --text-max-len TEXT_MAX_LEN
-                        Max length of text after tokenization
-  --datapath DATAPATH   Path of data
-  --dataset DATASET     Use which dataset
-  -mod MODALITIES, --modalities MODALITIES
-                        what modalities to use
-  --valid               Only run validation
-  --test                Only run test
-  --ckpt CKPT           Path of checkpoint
-  --ckpt-mod CKPT_MOD   Load which modality of the checkpoint
-  -dr DROPOUT, --dropout DROPOUT
-                        dropout
-  -nl NUM_LAYERS, --num-layers NUM_LAYERS
-                        num of layers of LSTM
-  -hs HIDDEN_SIZE, --hidden-size HIDDEN_SIZE
-                        hidden vector size of LSTM
-  -bi, --bidirectional  Use Bi-LSTM
-  --gru                 Use GRU rather than LSTM
-```
